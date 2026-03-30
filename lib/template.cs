@@ -26,39 +26,39 @@ class Nms
     for (int i = 0; i < n; i++) a[i] = val;
     return a;
   }
-  public static T[] Prefix<T>(T[] v) where T : INumber<T>
+  public static T[] Prefix<T, M>(T[] v) where M : IMonoid<T>
   {
     var a = new T[v.Length];
     for (int i = 0; i < a.Length; i++) 
     {
-      a[i] = (i > 0 ? a[i-1] : T.Zero) + v[i];
+      a[i] = M.Op(v[i], i>0 ? a[i-1] : M.Id);
     }
     return a;
   }
-  public static void Prefix<T>(T[] dest, T[] src) where T : INumber<T>
+  public static void Prefix<T, M>(T[] dest, T[] src) where M : IMonoid<T>
   {
     if (dest.Length != src.Length) throw new ArgumentException();
 
     for(int i=0; i<dest.Length; ++i) 
     {
-      dest[i] = (i > 0 ? dest[i-1] : T.Zero) + src[i];
+      dest[i] = M.Op(src[i], i>0 ? dest[i-1] : M.Id);
     }
   }
-  public static T[] Suffix<T>(T[] v) where T : INumber<T>
+  public static T[] Suffix<T, M>(T[] v) where M : IMonoid<T>
   {
     var a = new T[v.Length];
     for (int i = a.Length-1; i >= 0; i--)
     {
-      a[i] = (i+1 < a.Length ? a[i+1] : T.Zero) + v[i];
+      a[i] = M.Op(v[i], i+1<a.Length ? a[i+1] : M.Id);
     }
     return a;
   }
-  public static void Suffix<T>(T[] dest, T[] src) where T : INumber<T>
+  public static void Suffix<T, M>(T[] dest, T[] src) where M : IMonoid<T>
   {
-    if (a.Length != v.Length) throw new ArgumentException();
+    if (dest.Length != src.Length) throw new ArgumentException();
     for(int i = dest.Length-1; i>=0; --i) 
     {
-      dest[i] = (i+1 < dest.Length ? dest[i+1] : T.Zero) + src[i];
+      dest[i] = M.Op(src[i], i+1<dest.Length ? dest[i+1] : M.Id);
     }
   }
   public static T[][] Matrix<T>(int h, int w, Func<T> f)
@@ -94,6 +94,67 @@ class Nms
   public static void Mwah(bool b = true)
   {
     if (b) Console.WriteLine("MWAH!");
+  }
+}
+
+interface IMonoid<T>
+{
+  static abstract T Id { get; }
+  static abstract T Op (T a, T b);
+}
+
+class Binary<T> where T : IBinaryInteger<T>
+{
+  public static readonly T mod3 = T.CreateChecked(Sugaku.MOD3);
+  public static readonly T mod7 = T.CreateChecked(Sugaku.MOD7);
+
+  public static T Add(T a, T b, T mod)
+    => (a + b) % mod;
+
+  public struct Add3 : IMonoid<T>
+  {
+    public static T Id => T.Zero;
+    public static T Op(T a, T b)
+      => Add(a, b, mod3);
+  }
+  
+  public struct Add7 : IMonoid<T>
+  {
+    public static T Id => T.Zero;
+    public static T Op(T a, T b)
+      => Add(a, b, mod7);
+  }
+
+  public static T Mul(T a, T b, T mod)
+  {
+    if(a<T.Zero || a>=mod) a = (a + mod) % mod;
+    if(b<T.Zero || b>=mod) b = (b + mod) % mod;
+
+    return a * b % mod;
+  }
+  public struct Mul3 : IMonoid<T>
+  {
+    public static T Id => T.One;
+    public static T Op(T a, T b)
+      => Mul(a, b, mod3);
+  }
+  public struct Mul7 : IMonoid<T>
+  {
+    public static T Id => T.One;
+    public static T Op(T a, T b)
+      => Mul(a, b, mod7);
+  }
+
+  public static T Gcd(T a, T b)
+  {
+    while(b != T.Zero) (a, b) = (b, a % b);
+    return a;
+  }
+  public struct GCD : IMonoid<T>
+  {
+    public static T Id => T.Zero;
+    public static T Op(T a, T b)
+      => Gcd(a, b);
   }
 }
 
@@ -653,6 +714,15 @@ class Sugaku
     }
     return cnt;
   }
+  public static long Inv3(long b)
+    => Pow3(b, MOD3-2);
+  public static long Inv7(long b)
+    => Pow7(b, MOD7-2);
+  public static long Pow3(long b, long r)
+    => ModPow(b, r, MOD3);
+  
+  public static long Pow7(long b, long r)
+    => ModPow(b, r, MOD7);
 
   public static long ModPow(long b, long r, long MOD)
   {
