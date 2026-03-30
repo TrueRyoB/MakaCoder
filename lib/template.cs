@@ -26,40 +26,17 @@ class Nms
     for (int i = 0; i < n; i++) a[i] = val;
     return a;
   }
-  public static T[] Prefix<T, M>(T[] v) where M : IMonoid<T>
+  public static T[] PrefixFold<T, M>(T[] v) where M : IMonoid<T>
   {
     var a = new T[v.Length];
-    for (int i = 0; i < a.Length; i++) 
-    {
-      a[i] = M.Op(v[i], i>0 ? a[i-1] : M.Id);
-    }
+    for (int i = 0; i < a.Length; i++) a[i] = M.Op(v[i], i>0 ? a[i-1] : M.Id);
     return a;
   }
-  public static void Prefix<T, M>(T[] dest, T[] src) where M : IMonoid<T>
-  {
-    if (dest.Length != src.Length) throw new ArgumentException();
-
-    for(int i=0; i<dest.Length; ++i) 
-    {
-      dest[i] = M.Op(src[i], i>0 ? dest[i-1] : M.Id);
-    }
-  }
-  public static T[] Suffix<T, M>(T[] v) where M : IMonoid<T>
+  public static T[] SuffixFold<T, M>(ReadOnlySpan<T> v) where M : IMonoid<T>
   {
     var a = new T[v.Length];
-    for (int i = a.Length-1; i >= 0; i--)
-    {
-      a[i] = M.Op(v[i], i+1<a.Length ? a[i+1] : M.Id);
-    }
+    for (int i = a.Length-1; i >= 0; i--) a[i] = M.Op(v[i], i+1<a.Length ? a[i+1] : M.Id);
     return a;
-  }
-  public static void Suffix<T, M>(T[] dest, T[] src) where M : IMonoid<T>
-  {
-    if (dest.Length != src.Length) throw new ArgumentException();
-    for(int i = dest.Length-1; i>=0; --i) 
-    {
-      dest[i] = M.Op(src[i], i+1<dest.Length ? dest[i+1] : M.Id);
-    }
   }
   public static T[][] Matrix<T>(int h, int w, Func<T> f)
   {
@@ -111,14 +88,14 @@ class Binary<T> where T : IBinaryInteger<T>
   public static T Add(T a, T b, T mod)
     => (a + b) % mod;
 
-  public struct Add3 : IMonoid<T>
+  public struct Sum3 : IMonoid<T>
   {
     public static T Id => T.Zero;
     public static T Op(T a, T b)
       => Add(a, b, mod3);
   }
   
-  public struct Add7 : IMonoid<T>
+  public struct Sum7 : IMonoid<T>
   {
     public static T Id => T.Zero;
     public static T Op(T a, T b)
@@ -132,13 +109,13 @@ class Binary<T> where T : IBinaryInteger<T>
 
     return a * b % mod;
   }
-  public struct Mul3 : IMonoid<T>
+  public struct Prod3 : IMonoid<T>
   {
     public static T Id => T.One;
     public static T Op(T a, T b)
       => Mul(a, b, mod3);
   }
-  public struct Mul7 : IMonoid<T>
+  public struct Prod7 : IMonoid<T>
   {
     public static T Id => T.One;
     public static T Op(T a, T b)
@@ -797,6 +774,15 @@ class FastScanner
     return val * sign;
   }
 
+  public (int, int) Int2()
+    => (Int(), Int());
+  
+  public (int, int, int) Int3()
+    => (Int(), Int(), Int());
+
+  public (int, int, int, int) Int4()
+    => (Int(), Int(), Int(), Int());
+
   public long Long()
   {
     int c;
@@ -812,6 +798,15 @@ class FastScanner
       val = val * 10 + c - '0';
     return val * sign;
   }
+
+  public (long, long) Long2()
+    => (Long(), Long());
+  
+  public (long, long, long) Long3()
+    => (Long(), Long(), Long());
+  
+  public (long, long, long, long) Long4()
+    => (Long(), Long(), Long(), Long());
 
   public string String()
   {
