@@ -8,7 +8,6 @@ var sb = new StringBuilder();
 
 
 
-
 Console.Write(sb.ToString());
 
 
@@ -671,6 +670,24 @@ class Graph
     Array.Reverse(a, i + 1, n - i - 1);
 
     return true;
+  }
+  public static IEnumerable<int[]> Combinations(int n, int k)
+  {
+    var a=new int[k];
+    for(int i=0; i<k; ++i) a[i]=i;
+
+    while(true)
+    {
+      yield return (int[])a.Clone();
+
+      int i=k-1;
+      for(; i>=0; --i) if(a[i]!=i+n-k) break;
+
+      if(i<0) yield break;
+
+      a[i]++;
+      for(int j=i+1; j<k; ++j) a[j]=a[j-1]+1;
+    }
   }
 }
 
