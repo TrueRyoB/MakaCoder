@@ -745,6 +745,72 @@ class Segment<T>
   public T this[int k] => v[k + n];
 }
 
+class PotentialUnionFind
+{
+  private readonly int[] par;
+  private readonly int[] rank;
+  private readonly long[] diff;
+
+  public PotentialUnionFind(int n, long sumUnity=0)
+  {
+    par = new int[n];
+    rank = new int[n];
+    diff = new long[n];
+
+    for(int i=0; i<n; ++i)
+    {
+      par[i]=i;
+      rank[i]=0;
+      diff[i]=sumUnity;
+    }
+  }
+
+  public int Root(int x)
+  {
+    if(par[x]==x) return x;
+
+    int r=Root(par[x]);
+    diff[x] += diff[par[x]];
+    return par[x]=r;
+  }
+
+  public long Potential(int x)
+  {
+    Root(x);
+    return diff[x];
+  }
+
+  public bool Same(int x, int y)
+   => Root(x) == Root(y);
+  
+  public long Diff(int x, int y)
+    => Potential(y) - Potential(x);
+
+  public bool Merge(int x, int y, long w)
+  {
+    w+=Potential(x);
+    w-=Potential(y);
+
+    x=Root(x);
+    y=Root(y);
+
+    if(x==y) return false;
+
+    if(rank[x] < rank[y])
+    {
+      (x, y)=(y, x);
+      w=-w;
+    }
+
+    if(rank[x]==rank[y]) rank[x]++;
+
+    par[y]=x;
+    diff[y]=w;
+
+    return true;
+  }
+}
+
 class UnionFind
 {
   private readonly int[] root;
