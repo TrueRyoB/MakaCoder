@@ -1,8 +1,13 @@
 using System.Text;
 using System.Numerics;
 
+
 var fs = new FastScanner();
 var sb = new StringBuilder();
+
+
+
+
 
 
 
@@ -28,13 +33,13 @@ class Nms
   public static T[] PrefixFold<T, M>(T[] v) where M : IMonoid<T>
   {
     var a = new T[v.Length];
-    for (int i = 0; i < a.Length; i++) a[i] = M.Op(v[i], i>0 ? a[i-1] : M.Id);
+    for (int i = 0; i < a.Length; i++) a[i] = M.Op(v[i], i > 0 ? a[i - 1] : M.Id);
     return a;
   }
   public static T[] SuffixFold<T, M>(ReadOnlySpan<T> v) where M : IMonoid<T>
   {
     var a = new T[v.Length];
-    for (int i = a.Length-1; i >= 0; i--) a[i] = M.Op(v[i], i+1<a.Length ? a[i+1] : M.Id);
+    for (int i = a.Length - 1; i >= 0; i--) a[i] = M.Op(v[i], i + 1 < a.Length ? a[i + 1] : M.Id);
     return a;
   }
   public static T[][] Matrix<T>(int h, int w, Func<T> f)
@@ -71,12 +76,189 @@ class Nms
   {
     if (b) Console.WriteLine("MWAH!");
   }
+
+  public static int[] InOrder<T>(T[] a) where T : IComparable<T>
+  {
+    var res = new int[a.Length];
+    var sorted = a.ToArray();
+    System.Array.Sort(sorted);
+
+    for (int i = 0; i < res.Length; ++i)
+    {
+      int l = 0, r = a.Length;
+      while (l + 1 < r)
+      {
+        int m = l + (r - l) / 2;
+        if (sorted[m].CompareTo(a[i]) <= 0) l = m;
+        else r = m;
+      }
+      res[i] = l;
+    }
+
+    return res;
+  }
+}
+
+readonly struct ModInt : IEquatable<ModInt>
+{
+  private readonly long _value;
+
+  private static long _mod;
+  private static bool _modIsSet;
+
+  public long Value => _value;
+  public static long Mod => _mod;
+
+  public static void SetMod(long mod)
+  {
+    if (mod <= 1) throw new ArgumentOutOfRangeException(nameof(mod), "mod must be > 1.");
+    _mod = mod;
+    _modIsSet = true;
+  }
+
+  private static void EnsureModSet()
+  {
+    if (!_modIsSet)
+      throw new InvalidOperationException("Mod is not set. Call ModInt.SetMod(mod) first.");
+  }
+
+  private static long Normalize(long x)
+  {
+    EnsureModSet();
+    x %= _mod;
+    if (x < 0) x += _mod;
+    return x;
+  }
+
+  public ModInt(long value)
+  {
+    _value = Normalize(value);
+  }
+
+  public static implicit operator ModInt(int x) => new ModInt(x);
+  public static implicit operator ModInt(long x) => new ModInt(x);
+
+  public static explicit operator int(ModInt x) => checked((int)x._value);
+  public static explicit operator long(ModInt x) => x._value;
+
+  private static long MulMod(long a, long b)
+  {
+    return (long)(((BigInteger)a * b) % _mod);
+  }
+
+  public ModInt Pow(long exp)
+  {
+    if (exp < 0) throw new ArgumentOutOfRangeException(nameof(exp));
+    EnsureModSet();
+
+    long baseVal = _value;
+    long result = 1 % _mod;
+
+    while (exp > 0)
+    {
+      if ((exp & 1) != 0) result = MulMod(result, baseVal);
+      baseVal = MulMod(baseVal, baseVal);
+      exp >>= 1;
+    }
+
+    return new ModInt(result);
+  }
+
+  public ModInt Inverse()
+  {
+    if (_value == 0) throw new DivideByZeroException();
+    return Pow(_mod - 2);
+  }
+
+  public static ModInt operator +(ModInt a, ModInt b)
+  {
+    EnsureModSet();
+    long v = a._value + b._value;
+    if (v >= _mod) v -= _mod;
+    return new ModInt(v);
+  }
+
+  public static ModInt operator -(ModInt a, ModInt b)
+  {
+    EnsureModSet();
+    long v = a._value - b._value;
+    if (v < 0) v += _mod;
+    return new ModInt(v);
+  }
+
+  public static ModInt operator *(ModInt a, ModInt b)
+  {
+    EnsureModSet();
+    return new ModInt(MulMod(a._value, b._value));
+  }
+
+  public static ModInt operator /(ModInt a, ModInt b)
+  {
+    return a * b.Inverse();
+  }
+
+  public static ModInt operator -(ModInt a)
+  {
+    EnsureModSet();
+    return a._value == 0 ? a : new ModInt(_mod - a._value);
+  }
+
+  public static ModInt operator ++(ModInt a) => a + 1;
+  public static ModInt operator --(ModInt a) => a - 1;
+
+  public static ModInt operator +(ModInt a, long b) => a + new ModInt(b);
+  public static ModInt operator +(long a, ModInt b) => new ModInt(a) + b;
+
+  public static ModInt operator -(ModInt a, long b) => a - new ModInt(b);
+  public static ModInt operator -(long a, ModInt b) => new ModInt(a) - b;
+
+  public static ModInt operator *(ModInt a, long b) => a * new ModInt(b);
+  public static ModInt operator *(long a, ModInt b) => new ModInt(a) * b;
+
+  public static ModInt operator /(ModInt a, long b) => a / new ModInt(b);
+  public static ModInt operator /(long a, ModInt b) => new ModInt(a) / b;
+
+  public static bool operator ==(ModInt a, ModInt b) => a._value == b._value;
+  public static bool operator !=(ModInt a, ModInt b) => a._value != b._value;
+
+  public bool Equals(ModInt other) => _value == other._value;
+  public override bool Equals(object obj) => obj is ModInt other && Equals(other);
+  public override int GetHashCode() => _value.GetHashCode();
+  public override string ToString() => _value.ToString();
+}
+
+class Count
+{
+  private readonly int n;
+  private readonly long mod;
+  private readonly long[] fact;
+  private readonly long[] inv;
+
+  public Count(int n, long mod)
+  {
+    this.n = n;
+    this.mod = mod;
+    fact = new long[n];
+
+    fact[0] = fact[1] = 1 % mod;
+    for (int i = 2; i < n; ++i) fact[i] = fact[i - 1] * i % mod;
+
+    inv = new long[n];
+    inv[n - 1] = Sugaku.ModPow(fact[n - 1], mod - 2, mod);
+    for (int i = n - 2; i >= 0; --i) inv[i] = inv[i + 1] * (i + 2) % mod;
+  }
+
+  public long C(int a, int b)
+   => (a < 0 || b < 0 || b > a) ? 0 : fact[a] * inv[a - b] % mod * inv[b] % mod;
+
+  public long H(int a, int b)
+    => C(a + b - 1, a - 1);
 }
 
 interface IMonoid<T>
 {
   static abstract T Id { get; }
-  static abstract T Op (T a, T b);
+  static abstract T Op(T a, T b);
 }
 
 class Binary<T> where T : IBinaryInteger<T>
@@ -93,7 +275,7 @@ class Binary<T> where T : IBinaryInteger<T>
     public static T Op(T a, T b)
       => Add(a, b, mod3);
   }
-  
+
   public struct Sum7 : IMonoid<T>
   {
     public static T Id => T.Zero;
@@ -103,8 +285,8 @@ class Binary<T> where T : IBinaryInteger<T>
 
   public static T Mul(T a, T b, T mod)
   {
-    if(a<T.Zero || a>=mod) a = (a + mod) % mod;
-    if(b<T.Zero || b>=mod) b = (b + mod) % mod;
+    if (a < T.Zero || a >= mod) a = (a + mod) % mod;
+    if (b < T.Zero || b >= mod) b = (b + mod) % mod;
 
     return a * b % mod;
   }
@@ -123,7 +305,7 @@ class Binary<T> where T : IBinaryInteger<T>
 
   public static T Gcd(T a, T b)
   {
-    while(b != T.Zero) (a, b) = (b, a % b);
+    while (b != T.Zero) (a, b) = (b, a % b);
     return a;
   }
   public struct GCD : IMonoid<T>
@@ -673,20 +855,20 @@ class Graph
   }
   public static IEnumerable<int[]> Combinations(int n, int k)
   {
-    var a=new int[k];
-    for(int i=0; i<k; ++i) a[i]=i;
+    var a = new int[k];
+    for (int i = 0; i < k; ++i) a[i] = i;
 
-    while(true)
+    while (true)
     {
       yield return (int[])a.Clone();
 
-      int i=k-1;
-      for(; i>=0; --i) if(a[i]!=i+n-k) break;
+      int i = k - 1;
+      for (; i >= 0; --i) if (a[i] != i + n - k) break;
 
-      if(i<0) yield break;
+      if (i < 0) yield break;
 
       a[i]++;
-      for(int j=i+1; j<k; ++j) a[j]=a[j-1]+1;
+      for (int j = i + 1; j < k; ++j) a[j] = a[j - 1] + 1;
     }
   }
 }
@@ -709,12 +891,12 @@ class Sugaku
     return cnt;
   }
   public static long Inv3(long b)
-    => Pow3(b, MOD3-2);
+    => Pow3(b, MOD3 - 2);
   public static long Inv7(long b)
-    => Pow7(b, MOD7-2);
+    => Pow7(b, MOD7 - 2);
   public static long Pow3(long b, long r)
     => ModPow(b, r, MOD3);
-  
+
   public static long Pow7(long b, long r)
     => ModPow(b, r, MOD7);
 
@@ -793,7 +975,7 @@ class FastScanner
 
   public (int, int) Int2()
     => (Int(), Int());
-  
+
   public (int, int, int) Int3()
     => (Int(), Int(), Int());
 
@@ -818,10 +1000,10 @@ class FastScanner
 
   public (long, long) Long2()
     => (Long(), Long());
-  
+
   public (long, long, long) Long3()
     => (Long(), Long(), Long());
-  
+
   public (long, long, long, long) Long4()
     => (Long(), Long(), Long(), Long());
 
