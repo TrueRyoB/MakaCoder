@@ -13,7 +13,9 @@ var sb = new StringBuilder();
 
 
 
-Console.Write(sb.ToString());
+
+
+Console.WriteLine(sb.ToString());
 
 
 class Nms
@@ -745,24 +747,30 @@ class Segment<T>
   public T this[int k] => v[k + n];
 }
 
-class PotentialUnionFind
+class UnionFind
 {
   private readonly int[] par;
   private readonly int[] rank;
+  private readonly int[] size;
   private readonly long[] diff;
+  private int components;
 
-  public PotentialUnionFind(int n, long sumUnity=0)
+  public UnionFind(int n, long sumUnity=0)
   {
     par = new int[n];
     rank = new int[n];
+    size = new int[n];
     diff = new long[n];
 
     for(int i=0; i<n; ++i)
     {
       par[i]=i;
       rank[i]=0;
+      size[i]=1;
       diff[i]=sumUnity;
     }
+
+    components=n;
   }
 
   public int Root(int x)
@@ -806,45 +814,17 @@ class PotentialUnionFind
 
     par[y]=x;
     diff[y]=w;
+    size[x]+=size[y];
+    --components;
 
     return true;
   }
-}
 
-class UnionFind
-{
-  private readonly int[] root;
-  private readonly int[] size;
-  private int sz;
-  public UnionFind(int n)
-  {
-    root = new int[n];
-    size = new int[n];
-    for (int i = 0; i < n; ++i)
-    {
-      root[i] = i;
-      size[i] = 1;
-    }
-    sz = n;
-  }
-  public int Root(int k)
-  {
-    return root[k] == k ? k : root[k] = Root(root[k]);
-  }
-  public int Merge(int a, int b)
-  {
-    a = Root(a); b = Root(b);
-    if (a == b) return a;
-    if (size[a] < size[b]) (a, b) = (b, a);
-    root[b] = a;
-    size[a] += size[b];
-    --sz;
-    return a;
-  }
-  public bool Same(int a, int b) => Root(a) == Root(b);
+  public int Size()
+    => components;
 
-  public int Count => sz;
-  public int this[int k] => size[Root(k)];
+  public int Size(int x)
+    => size[Root(x)];
 }
 
 class StackArray<T>(int n = 100)
@@ -945,6 +925,97 @@ class Sugaku
   public const long MOD3 = 998244353L;
   public const int INF = 1001001001;
   public const long LINF = 1001001001001001001L;
+
+  public static T Median<T>(ReadOnlySpan<T> a) where T : INumber<T>
+  {
+    if(a.Length==0) throw new ArgumentException("empty");
+
+    var b=a.ToArray();
+    int n=b.Length;
+
+    if((n&1)==1) return Select(b, 0, n-1, n>>1);
+
+    var left=Select(b, 0, n-1, (n>>1)-1);
+    var right=Select(b, 0, n-1, n>>1);
+    return (left+right)/T.CreateChecked(2);
+  }
+
+  private static T Select<T>(T[] a, int l, int r, int k) where T : INumber<T>
+  {
+    while(true)
+    {
+      if(l==r) return a[l];
+
+      int pivotIndex=MedianOfMedians(a, l, r);
+      var (lt, gt) = Partition3(a, l, r, a[pivotIndex]);
+
+      if(k<lt) r=lt-1;
+      else if(k>gt) l=gt+1;
+      else return a[k];
+    }
+  }
+
+  private static(int lt, int gt) Partition3<T>(T[] a, int l, int r, T pivot) where T : INumber<T>
+  {
+    int lt=l, i=l, gt=r;
+    while(i<=gt)
+    {
+      int cmp=a[i].CompareTo(pivot);
+      if(cmp<0)
+      {
+        (a[lt], a[i]) = (a[i], a[lt]);
+        ++lt; ++i;
+      }
+      else if(cmp>0)
+      {
+        (a[i], a[gt])=(a[gt], a[i]);
+        --gt;
+      }
+      else
+      {
+        ++i;
+      }
+    }
+    return (lt, gt);
+  }
+
+  private static int MedianOfMedians<T>(T[] a, int l, int r) where T : INumber<T>
+  {
+    int n = r - l + 1;
+    if (n <= 5)
+    {
+      InsertionSort(a, l, r);
+      return l + n / 2;
+    }
+
+    int m = 0;
+    for (int i = l; i <= r; i += 5)
+    {
+      int subR = Math.Min(i + 4, r);
+      InsertionSort(a, i, subR);
+      int median = i + (subR - i) / 2;
+      (a[l + m], a[median]) = (a[median], a[l + m]);
+      m++;
+    }
+
+    return MedianOfMedians(a, l, l + m - 1);
+  }
+
+  private static void InsertionSort<T>(T[] a, int l, int r) where T : INumber<T>
+  {
+    for (int i = l + 1; i <= r; ++i)
+    {
+      var key = a[i];
+      int j = i - 1;
+      while (j >= l && a[j] > key)
+      {
+        a[j + 1] = a[j];
+        j--;
+      }
+      a[j + 1] = key;
+    }
+  }
+
 
   public static int PopCount<T>(T a) where T : IBinaryInteger<T>
   {
