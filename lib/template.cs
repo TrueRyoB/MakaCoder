@@ -1,11 +1,8 @@
-using System.Text;
-using System.Numerics;
-
+using System.Text; using System.Numerics; using System.Runtime.CompilerServices; 
+#nullable enable
 
 var fs = new FastScanner();
 var sb = new StringBuilder();
-
-
 
 
 
@@ -98,6 +95,121 @@ class Nms
     }
 
     return res;
+  }
+}
+
+sealed class Matrix<T>
+{
+  private readonly T[] data;
+
+  public int N { get; }
+  public Func<T, T, T> Add { get; }
+  public Func<T, T, T> Mul { get; }
+  public T AddIdentity { get; }
+  public T MulIdentity { get; }
+  private readonly IEqualityComparer<T> comparer;
+
+  public Matrix(
+      int n,
+      Func<T, T, T> add,
+      Func<T, T, T> mul,
+      T addIdentity,
+      T mulIdentity,
+      IEqualityComparer<T>? comparer = null)
+  {
+    if (n <= 0) throw new ArgumentOutOfRangeException(nameof(n));
+    N = n;
+    Add = add ?? throw new ArgumentNullException(nameof(add));
+    Mul = mul ?? throw new ArgumentNullException(nameof(mul));
+    AddIdentity = addIdentity;
+    MulIdentity = mulIdentity;
+    this.comparer = comparer ?? EqualityComparer<T>.Default;
+
+    data = new T[n * n];
+    Array.Fill(data, addIdentity);
+  }
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  private int Idx(int i, int j) => i * N + j;
+
+  public T this[int i, int j]
+  {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    get => data[Idx(i, j)];
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    set => data[Idx(i, j)] = value;
+  }
+
+  public static Matrix<T> Identity(
+      int n,
+      Func<T, T, T> add,
+      Func<T, T, T> mul,
+      T addIdentity,
+      T mulIdentity,
+      IEqualityComparer<T>? comparer = null)
+  {
+    var m = new Matrix<T>(n, add, mul, addIdentity, mulIdentity, comparer);
+    for (int i = 0; i < n; i++)
+      m.data[i * n + i] = mulIdentity;
+    return m;
+  }
+
+  public Matrix<T> Multiply(Matrix<T> other)
+  {
+    if (other is null) throw new ArgumentNullException(nameof(other));
+    if (N != other.N) throw new ArgumentException("Matrix size mismatch.");
+
+    int n = N;
+    var res = new Matrix<T>(n, Add, Mul, AddIdentity, MulIdentity, comparer);
+
+    var a = data;
+    var b = other.data;
+    var c = res.data;
+
+    var add = Add;
+    var mul = Mul;
+    var zero = AddIdentity;
+    var eq = comparer;
+
+    for (int i = 0; i < n; i++)
+    {
+      int rowA = i * n;
+      int rowC = i * n;
+
+      for (int k = 0; k < n; k++)
+      {
+        T aik = a[rowA + k];
+        if (eq.Equals(aik, zero)) continue;
+
+        int rowB = k * n;
+        for (int j = 0; j < n; j++)
+        {
+          int idx = rowC + j;
+          c[idx] = add(c[idx], mul(aik, b[rowB + j]));
+        }
+      }
+    }
+
+    return res;
+  }
+
+  public Matrix<T> Pow(long exp)
+  {
+    if (exp < 0) throw new ArgumentOutOfRangeException(nameof(exp));
+
+    int n = N;
+    var result = Identity(n, Add, Mul, AddIdentity, MulIdentity, comparer);
+    var baseMat = this;
+    long e = exp;
+
+    while (e > 0)
+    {
+      if ((e & 1) != 0) result = result.Multiply(baseMat);
+      e >>= 1;
+      if (e > 0) baseMat = baseMat.Multiply(baseMat);
+    }
+
+    return result;
   }
 }
 
@@ -224,7 +336,7 @@ readonly struct ModInt : IEquatable<ModInt>
   public static bool operator !=(ModInt a, ModInt b) => a._value != b._value;
 
   public bool Equals(ModInt other) => _value == other._value;
-  public override bool Equals(object obj) => obj is ModInt other && Equals(other);
+  public override bool Equals(object? obj) => obj is ModInt other && Equals(other);
   public override int GetHashCode() => _value.GetHashCode();
   public override string ToString() => _value.ToString();
 }
@@ -755,31 +867,31 @@ class UnionFind
   private readonly long[] diff;
   private int components;
 
-  public UnionFind(int n, long sumUnity=0)
+  public UnionFind(int n, long sumUnity = 0)
   {
     par = new int[n];
     rank = new int[n];
     size = new int[n];
     diff = new long[n];
 
-    for(int i=0; i<n; ++i)
+    for (int i = 0; i < n; ++i)
     {
-      par[i]=i;
-      rank[i]=0;
-      size[i]=1;
-      diff[i]=sumUnity;
+      par[i] = i;
+      rank[i] = 0;
+      size[i] = 1;
+      diff[i] = sumUnity;
     }
 
-    components=n;
+    components = n;
   }
 
   public int Root(int x)
   {
-    if(par[x]==x) return x;
+    if (par[x] == x) return x;
 
-    int r=Root(par[x]);
+    int r = Root(par[x]);
     diff[x] += diff[par[x]];
-    return par[x]=r;
+    return par[x] = r;
   }
 
   public long Potential(int x)
@@ -790,31 +902,31 @@ class UnionFind
 
   public bool Same(int x, int y)
    => Root(x) == Root(y);
-  
+
   public long Diff(int x, int y)
     => Potential(y) - Potential(x);
 
-  public bool Merge(int x, int y, long w)
+  public bool Merge(int x, int y, long w = 0)
   {
-    w+=Potential(x);
-    w-=Potential(y);
+    w += Potential(x);
+    w -= Potential(y);
 
-    x=Root(x);
-    y=Root(y);
+    x = Root(x);
+    y = Root(y);
 
-    if(x==y) return false;
+    if (x == y) return false;
 
-    if(rank[x] < rank[y])
+    if (rank[x] < rank[y])
     {
-      (x, y)=(y, x);
-      w=-w;
+      (x, y) = (y, x);
+      w = -w;
     }
 
-    if(rank[x]==rank[y]) rank[x]++;
+    if (rank[x] == rank[y]) rank[x]++;
 
-    par[y]=x;
-    diff[y]=w;
-    size[x]+=size[y];
+    par[y] = x;
+    diff[y] = w;
+    size[x] += size[y];
     --components;
 
     return true;
@@ -928,47 +1040,47 @@ class Sugaku
 
   public static T Median<T>(ReadOnlySpan<T> a) where T : INumber<T>
   {
-    if(a.Length==0) throw new ArgumentException("empty");
+    if (a.Length == 0) throw new ArgumentException("empty");
 
-    var b=a.ToArray();
-    int n=b.Length;
+    var b = a.ToArray();
+    int n = b.Length;
 
-    if((n&1)==1) return Select(b, 0, n-1, n>>1);
+    if ((n & 1) == 1) return Select(b, 0, n - 1, n >> 1);
 
-    var left=Select(b, 0, n-1, (n>>1)-1);
-    var right=Select(b, 0, n-1, n>>1);
-    return (left+right)/T.CreateChecked(2);
+    var left = Select(b, 0, n - 1, (n >> 1) - 1);
+    var right = Select(b, 0, n - 1, n >> 1);
+    return (left + right) / T.CreateChecked(2);
   }
 
   private static T Select<T>(T[] a, int l, int r, int k) where T : INumber<T>
   {
-    while(true)
+    while (true)
     {
-      if(l==r) return a[l];
+      if (l == r) return a[l];
 
-      int pivotIndex=MedianOfMedians(a, l, r);
+      int pivotIndex = MedianOfMedians(a, l, r);
       var (lt, gt) = Partition3(a, l, r, a[pivotIndex]);
 
-      if(k<lt) r=lt-1;
-      else if(k>gt) l=gt+1;
+      if (k < lt) r = lt - 1;
+      else if (k > gt) l = gt + 1;
       else return a[k];
     }
   }
 
-  private static(int lt, int gt) Partition3<T>(T[] a, int l, int r, T pivot) where T : INumber<T>
+  private static (int lt, int gt) Partition3<T>(T[] a, int l, int r, T pivot) where T : INumber<T>
   {
-    int lt=l, i=l, gt=r;
-    while(i<=gt)
+    int lt = l, i = l, gt = r;
+    while (i <= gt)
     {
-      int cmp=a[i].CompareTo(pivot);
-      if(cmp<0)
+      int cmp = a[i].CompareTo(pivot);
+      if (cmp < 0)
       {
         (a[lt], a[i]) = (a[i], a[lt]);
         ++lt; ++i;
       }
-      else if(cmp>0)
+      else if (cmp > 0)
       {
-        (a[i], a[gt])=(a[gt], a[i]);
+        (a[i], a[gt]) = (a[gt], a[i]);
         --gt;
       }
       else
