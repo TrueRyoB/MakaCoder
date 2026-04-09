@@ -96,6 +96,16 @@ class Nms
 
     return res;
   }
+
+  public static T[] SubArray<T>(ReadOnlySpan<T> a, ReadOnlySpan<int> index)
+  {
+    foreach(var e in index) if(e<0 || e>=a.Length) throw new Exception("Out of bounds.");
+
+    int n=index.Length;
+    var res = new T[n];
+    for(int i=0; i<n; ++i) res[i]=a[index[i]];
+    return res;
+  }
 }
 
 sealed class Matrix<T>
