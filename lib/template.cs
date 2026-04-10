@@ -1,6 +1,9 @@
 using System.Text; using System.Numerics; using System.Runtime.CompilerServices; 
 #nullable enable
 
+checked
+{
+
 var fs = new FastScanner();
 var sb = new StringBuilder();
 
@@ -12,7 +15,32 @@ var sb = new StringBuilder();
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Console.WriteLine(sb.ToString());
+
+}
 
 
 class Nms
