@@ -1,8 +1,6 @@
 using System.Text; using System.Numerics; using System.Runtime.CompilerServices; 
 #nullable enable
 
-checked
-{
 
 var fs = new FastScanner();
 var sb = new StringBuilder();
@@ -40,7 +38,6 @@ var sb = new StringBuilder();
 
 Console.WriteLine(sb.ToString());
 
-}
 
 
 class Nms
@@ -851,7 +848,7 @@ class Segment<T>
     v = new T[2 * k];
 
     for (int i = n; i < 2 * n; ++i) v[i] = val;
-    for (int i = n - 1; i >= 1; --i) v[i] = op(v[i / 2], v[1 + i / 2]);
+    for (int i = n - 1; i >= 1; --i) v[i] = op(v[2 * i], v[1 + 2 * i]);
   }
   public Segment(T identity, Func<T, T, T> op, IReadOnlyList<T> data)
   {
@@ -894,7 +891,14 @@ class Segment<T>
     }
   }
 
-  public T this[int k] => v[k + n];
+  public T this[int k]
+  {
+    get
+      => v[k + n];
+
+    set
+      => Set(k, value);
+  }
 }
 
 class UnionFind
