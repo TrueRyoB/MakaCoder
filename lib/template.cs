@@ -37,9 +37,7 @@ var sb = new StringBuilder();
 
 
 
-
-
-Console.WriteLine(sb.ToString());
+Console.Write(sb.ToString());
 
 
 
@@ -49,6 +47,12 @@ class Nms
   {
     var a = new T[n];
     for (int i = 0; i < n; i++) a[i] = f();
+    return a;
+  }
+  public static T[] Array<T>(int n, Func<int, T> f)
+  {
+    var a = new T[n];
+    for (int i = 0; i < n; i++) a[i] = f(i);
     return a;
   }
   public static T[] Array<T>(int n, T val)
@@ -76,6 +80,16 @@ class Nms
     {
       a[i] = new T[w];
       for (int j = 0; j < w; ++j) a[i][j] = f();
+    }
+    return a;
+  }
+  public static T[][] Matrix<T>(int h, int w, Func<int, int, T> f)
+  {
+    var a = new T[h][];
+    for (int i = 0; i < h; ++i)
+    {
+      a[i] = new T[w];
+      for (int j = 0; j < w; ++j) a[i][j] = f(i, j);
     }
     return a;
   }
@@ -134,6 +148,12 @@ class Nms
     for(int i=0; i<n; ++i) res[i]=a[index[i]];
     return res;
   }
+  public static Tensor<T> Tensor<T>(T val, params int[] shape)
+    => new(val, shape);
+  public static Tensor<T> Tensor<T>(Func<T> f, params int[] shape)
+    => new(f, shape);
+  public static Tensor<T> Tensor<T>(Func<int[], T> f, params int[] shape)
+    => new(f, shape);
 }
 
 sealed class Tensor<T>
@@ -143,13 +163,31 @@ sealed class Tensor<T>
   public readonly T[] Data;
   public Tensor(T val, params int[] shape)
     : this(shape)
-  {
-    Array.Fill(Data, val);
-  }
+   => Array.Fill(Data, val);
   public Tensor(Func<T> f, params int[] shape)
     : this(shape)
   {
     for(int i=0; i<Data.Length; ++i) Data[i]=f();
+  }
+  public Tensor(Func<int[], T> f, params int[] shape)
+    :this(shape)
+  {
+    var idx=new int[shape.Length];
+
+    void Fill(int d)
+    {
+      if(d==shape.Length)
+      {
+        Data[ToFlatDex(idx)]=f(idx);
+        return;
+      }
+      for(int i=0; i<shape[d]; ++i)
+      {
+        idx[d]=i;
+        Fill(d+1);
+      }
+    }
+    Fill(0);
   }
   private Tensor(int[] shape)
   {
@@ -1112,6 +1150,16 @@ class Graph
   public static readonly int[] D = [-1, 0, 1, 0, -1, -1, 1, 1, -1];
   public const int TRUE = 1;
   public const int FALSE = 0;
+  public static IEnumerable<(int, int, int)> Adjacent(int i, int j, int H, int W, int p=4)
+  {
+    for(int k=0; k<p; ++k)
+    {
+      int ni=i+D[k], nj=j+D[k+1];
+      if(ni<0 || nj<0 || ni>=H || ni>=W) continue;
+      yield return (ni, nj, k);
+    }
+    yield break;
+  }
   public static long MinPositive(long a, long b)
   {
     return (a < 0 || b < 0) ? Math.Max(a, b) : Math.Min(a, b);
