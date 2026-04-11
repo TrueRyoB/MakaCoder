@@ -1,4 +1,4 @@
-using System.Text; using System.Numerics; using System.Runtime.CompilerServices; 
+using System.Text; using System.Numerics; using System.Runtime.CompilerServices; using System; using System.Collections.Generic; using System.Linq; using System.IO;
 #nullable enable
 
 
@@ -41,7 +41,7 @@ Console.Write(sb.ToString());
 
 
 
-class Nms
+static class Nms
 {
   public static T[] Array<T>(int n, Func<T> f)
   {
@@ -520,7 +520,7 @@ interface IMonoid<T>
   static abstract T Op(T a, T b);
 }
 
-class Binary<T> where T : IBinaryInteger<T>
+static class Binary<T> where T : IBinaryInteger<T>
 {
   public static readonly T mod3 = T.CreateChecked(Sugaku.MOD3);
   public static readonly T mod7 = T.CreateChecked(Sugaku.MOD7);
@@ -1145,7 +1145,7 @@ class StackArray<T>(int n = 100)
   }
 }
 
-class Graph
+static class Graph
 {
   public static readonly int[] D = [-1, 0, 1, 0, -1, -1, 1, 1, -1];
   public const int TRUE = 1;
@@ -1200,7 +1200,7 @@ class Graph
   }
 }
 
-class Sugaku
+static class Sugaku
 {
   public const long MOD7 = 1000000007L;
   public const long MOD3 = 998244353L;
