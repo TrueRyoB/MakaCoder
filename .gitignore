@@ -19,4 +19,5 @@ AHC
 f.md
 main.cs
 .globalconfig
-.meta
+.
+!archive
