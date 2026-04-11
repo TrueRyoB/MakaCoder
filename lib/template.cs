@@ -36,6 +36,9 @@ var sb = new StringBuilder();
 
 
 
+
+
+
 Console.WriteLine(sb.ToString());
 
 
@@ -130,6 +133,75 @@ class Nms
     var res = new T[n];
     for(int i=0; i<n; ++i) res[i]=a[index[i]];
     return res;
+  }
+}
+
+sealed class Tensor<T>
+{
+  public readonly int[] Shape;
+  public readonly int[] Stride;
+  public readonly T[] Data;
+  public Tensor(T val, params int[] shape)
+    : this(shape)
+  {
+    Array.Fill(Data, val);
+  }
+  public Tensor(Func<T> f, params int[] shape)
+    : this(shape)
+  {
+    for(int i=0; i<Data.Length; ++i) Data[i]=f();
+  }
+  private Tensor(int[] shape)
+  {
+    Shape=shape;
+    Stride=new int[shape.Length];
+
+    int n=1;
+    for(int i=shape.Length-1; i>=0; --i)
+    {
+      Stride[i]=n;
+      n*=shape[i];
+    }
+    Data=new T[n];
+  }
+  private int ToFlatDex(int[] idx)
+  {
+    int k=0;
+    for(int i=0; i<idx.Length; ++i) k+=idx[i]*Stride[i];
+    return k;
+  }
+  public T this[params int[] idx]
+  {
+    get
+     => Data[ToFlatDex(idx)];
+    set
+     => Data[ToFlatDex(idx)]=value;
+  }
+  public override string ToString()
+  {
+    var sb=new StringBuilder();
+    var idx=new int[Shape.Length];
+
+    void BuildString(int d)
+    {
+      if(d==Shape.Length)
+      {
+        var v=Data[ToFlatDex(idx)];
+        sb.Append(v?.ToString());
+        return;
+      }
+      sb.Append('[');
+      
+      for(int i=0; i<Shape[d]; ++i)
+      {
+        if(i>0) sb.Append(", ");
+        idx[d]=i;
+        BuildString(d+1);
+      }
+      sb.Append(']');
+    }
+    BuildString(0);
+    return sb.ToString();
   }
 }
 
@@ -430,6 +502,13 @@ class Binary<T> where T : IBinaryInteger<T>
     public static T Id => T.Zero;
     public static T Op(T a, T b)
       => Add(a, b, mod7);
+  }
+
+  public struct Sum : IMonoid<T> 
+  {
+    public static T Id => T.Zero;
+    public static T Op(T a, T b) 
+     => a+b;
   }
 
   public static T Mul(T a, T b, T mod)
