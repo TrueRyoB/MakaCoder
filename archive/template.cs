@@ -1005,7 +1005,7 @@ class Segment<T>
 
   public T Query(int a, int b)
   {
-    if (a > b) (a, b) = (b, a);
+    if (a > b) return ide;
 
     T rec(int a, int b, int k, int l, int r)
     {
