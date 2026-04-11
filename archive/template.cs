@@ -37,8 +37,29 @@ var sb = new StringBuilder();
 
 
 
-Console.Write(sb.ToString());
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Console.Write(sb.ToString());
+return 0;
 
 
 static class Nms
