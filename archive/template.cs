@@ -175,6 +175,19 @@ static class Nms
     => new(f, shape);
   public static Tensor<T> Tensor<T>(Func<int[], T> f, params int[] shape)
     => new(f, shape);
+  public static StackArray<T> Stack<T>()
+    => new StackArray<T>();
+}
+
+public static class JaggedArrayExt
+{
+  public static T[][] DeepCopy<T>(this T[][] a)
+  {
+    var b = new T[a.Length][];
+    for (int i = 0; i < a.Length; ++i)
+        b[i] = (T[])a[i].Clone();
+    return b;
+  }
 }
 
 sealed class Tensor<T>
@@ -1005,7 +1018,7 @@ class Segment<T>
 
   public T Query(int a, int b)
   {
-    if (a > b) return ide;
+    if (a > b) (a, b) = (b, a);
 
     T rec(int a, int b, int k, int l, int r)
     {
@@ -1227,6 +1240,7 @@ static class Sugaku
   public const long MOD3 = 998244353L;
   public const int INF = 1001001001;
   public const long LINF = 1001001001001001001L;
+  public static readonly (int, int) NEG2 = (-1, -1);
 
   public static T Median<T>(ReadOnlySpan<T> a) where T : INumber<T>
   {

@@ -21,3 +21,5 @@ main.cs
 .globalconfig
 .
 !archive
+.editorconfig
+abc.sln
