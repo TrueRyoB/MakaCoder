@@ -1336,7 +1336,7 @@ static class Sugaku
   public static int PopCount<T>(T a) where T : IBinaryInteger<T>
   {
     int cnt = 0;
-    while (a.CompareTo(0) > 0)
+    while (a.CompareTo(T.Zero) > 0)
     {
       if ((a & T.One) == T.One) ++cnt;
       a >>= 1;
@@ -1356,6 +1356,7 @@ static class Sugaku
   public static long ModPow(long b, long r, long MOD)
   {
     long res = 1;
+    b %= MOD;
     while (r > 0)
     {
       if ((r & 1) != 0) res = res * b % MOD;
