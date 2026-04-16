@@ -88,10 +88,22 @@ static class Nms
     for (int i = 0; i < a.Length; i++) a[i] = M.Op(v[i], i > 0 ? a[i - 1] : M.Id);
     return a;
   }
+  public static T[] PrefixFold<T>(T[] v, T ide, Func<T, T, T> op)
+  {
+    var a = new T[v.Length];
+    for (int i = 0; i< a.Length; ++i) a[i]=op(v[i], i > 0 ? a[i-1] : ide);
+    return a;
+  }
   public static T[] SuffixFold<T, M>(ReadOnlySpan<T> v) where M : IMonoid<T>
   {
     var a = new T[v.Length];
     for (int i = a.Length - 1; i >= 0; i--) a[i] = M.Op(v[i], i + 1 < a.Length ? a[i + 1] : M.Id);
+    return a;
+  }
+  public static T[] SuffixFold<T>(T[] v, T ide, Func<T, T, T> op)
+  {
+    var a = new T[v.Length];
+    for (int i=a.Length-1; i>=0; --i) a[i]=op(v[i], i+1<a.Length ? a[i+1] : ide);
     return a;
   }
   public static T[][] Matrix<T>(int h, int w, Func<T> f)
@@ -1276,6 +1288,46 @@ static class Graph
     }
 
     return uf;
+  }
+
+  public static T[] RootedTree<T>(List<int>[] edges, Func<T, T, T> op, T ide) where T: IBinaryInteger<T>
+  {
+    int N=edges.Length;
+    var dp=Nms.Array(N, T.Zero);
+
+    void bottomup(int u, int p)
+    {
+      dp[u]=ide;
+      foreach(var v in edges[u]) if(v != p)
+      {
+        bottomup(v, u);
+        dp[u]=op(dp[u], dp[v]);
+      }
+    }
+    bottomup(0, -1);
+
+    var res=Nms.Array(N, T.Zero);
+
+    void topdown(int u, int p)
+    {
+      int M=edges[u].Count;
+
+      var sdp = Nms.SubArray<T>(dp, edges[u].ToArray());
+      
+      var prefix=Nms.PrefixFold<T>(sdp, ide, op);
+      var suffix=Nms.SuffixFold<T>(sdp, ide, op);
+
+      res[u]=prefix[M-1];
+
+      for(int i=0; i<M; ++i) if(edges[u][i]!=p)
+      {
+        dp[u]=op(i>0 ? prefix[i-1] : ide, i+1<M ? suffix[i+1] : ide);
+        topdown(edges[u][i], u);
+      }
+    }
+    topdown(0, -1);
+
+    return res;
   }
 }
 
