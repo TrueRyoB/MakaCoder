@@ -1232,6 +1232,51 @@ static class Graph
       for (int j = i + 1; j < k; ++j) a[j] = a[j - 1] + 1;
     }
   }
+
+  public static UnionFind SCC(List<int>[] graph, List<int>[] inv)
+  {
+    int N=graph.Count();
+
+    var seen=Nms.Array(N, false);
+    var ck=Nms.Stack<int>();
+    
+    var dfs=Nms.Stack<int>();
+
+    for(int i=0; i<N; ++i) if (!seen[i])
+    {
+      dfs.Push(i);
+      while(dfs.Count>0)
+      {
+        var u = dfs.Pop();
+        foreach(var v in graph[u]) if(!seen[u]) dfs.Push(v);
+        ck.Push(u);
+      }
+    }
+
+    Array.Fill(seen, false);
+
+    var uf = new UnionFind(N);
+
+    while(ck.Count>0)
+    {
+      var s=ck.Pop();
+      if(seen[s]) continue;
+      dfs.Push(s);
+
+      while(dfs.Count>0)
+      {
+        int u=dfs.Pop();
+        uf.Merge(u, s);
+        foreach(var v in inv[u]) if(!seen[v])
+        {
+          seen[v]=true;
+          dfs.Push(v);
+        }
+      }
+    }
+
+    return uf;
+  }
 }
 
 static class Sugaku
