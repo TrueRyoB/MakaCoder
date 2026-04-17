@@ -250,6 +250,7 @@ sealed class TopKSet<T>(int k, IComparer<T>? comp=null)
   }
 }
 
+
 public static class JaggedArrayExt
 {
   public static T[][] DeepCopy<T>(this T[][] a)
@@ -1174,8 +1175,8 @@ class UnionFind
     w += Potential(x);
     w -= Potential(y);
 
-    x = par[x];
-    y = par[y];
+    x = Root(x);
+    y = Root(y);
 
     if (x == y) return false;
 
@@ -1195,7 +1196,7 @@ class UnionFind
     return true;
   }
 
-  public int Count()
+  public int Size()
     => components;
 
   public int Size(int x)
@@ -1283,22 +1284,20 @@ static class Graph
 
     return true;
   }
-  public static IEnumerable<int[]> Combinations(int n, int k)
+  public static void ForEachCombination(int n, int k, Action<ReadOnlySpan<int>> action)
   {
-    var a = new int[k];
-    for (int i = 0; i < k; ++i) a[i] = i;
-
-    while (true)
+    var a=new int[k];
+    for(int i=0; i<k; ++i) a[i]=i;
+    
+    while(true)
     {
-      yield return (int[])a.Clone();
+      action(a.AsSpan());
 
-      int i = k - 1;
-      for (; i >= 0; --i) if (a[i] != i + n - k) break;
-
-      if (i < 0) yield break;
-
+      int i=k-1;
+      for(; i>=0; --i) if(a[i]!=i+n-k) break;
+      if(i<0) return;
       a[i]++;
-      for (int j = i + 1; j < k; ++j) a[j] = a[j - 1] + 1;
+      for(int j=i+1; j<k; ++j) a[j]=a[j-1]+1;
     }
   }
 
