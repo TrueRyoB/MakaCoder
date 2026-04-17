@@ -24,3 +24,4 @@ main.cs
 .editorconfig
 abc.sln
 !active
+!active/*
