@@ -351,6 +351,19 @@ sealed class TopKSet<T>(int k, IComparer<T>? comp=null)
   }
 }
 
+public static class StringExt
+{
+  public static string Reverse(this string s)
+  {
+    Span<char> span = s.Length<=256 ? stackalloc char[s.Length] : new char[s.Length];
+
+    s.AsSpan().CopyTo(span);
+    span.Reverse();
+
+    return new string(span);
+  }
+}
+
 public static class JaggedArrayExt
 {
   public static T[][] DeepCopy<T>(this T[][] a)
@@ -1506,6 +1519,19 @@ static class Sugaku
   public const long MOD3 = 998244353L;
   public const int INF = 1001001001;
   public const long LINF = 1001001001001001001L;
+
+  public static string ToBase(long N, int k)
+  {
+    if(k>=10 || k<1) throw new Exception("Invalid base number.");
+    string res="";
+    while(N>0)
+    {
+      char c=(char)((N%k)+'0');
+      res+=c;
+      N/=k;
+    }
+    return res.Reverse();
+  }
 
   public static double Median<T>(ReadOnlySpan<T> a) where T : INumber<T>
   {
