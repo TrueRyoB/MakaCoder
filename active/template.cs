@@ -187,6 +187,29 @@ static class Nms
     for(int i=0; i<n; ++i) res[i]=a[index[i]];
     return res;
   }
+  public static void Permutations(int n, Action<ReadOnlySpan<int>> action)
+  {
+    if(n<=0) throw new Exception("Invalid array length");
+    if(n>=12) throw new Exception("TLE alert");
+
+    var a=new int[n];
+    for (int i=0; i<n; ++i) a[i]=i;
+
+    while(true)
+    {
+      action(a.AsSpan());
+
+      int i=n-2;
+      while(i>=0 && a[i]>=a[i+1]) --i;
+      if(i<0) return;
+
+      int j=n-1;
+      while(a[i]>=a[j]) --j;
+
+      (a[i], a[j])=(a[j], a[i]);
+      System.Array.Reverse(a, i+1, n-i-1);
+    }
+  }
   public static Tensor<T> Tensor<T>(T val, params int[] shape)
     => new(val, shape);
   public static Tensor<T> Tensor<T>(Func<T> f, params int[] shape)
@@ -731,15 +754,6 @@ class Count
 
   public long H(int a, int b)
     => C(a + b - 1, a - 1);
-  public static T GCD<T>(T a, T b) where T : IBinaryInteger<T>
-  {
-    a = T.Abs(a);
-    b = T.Abs(b);
-    while (b != T.Zero) (a, b) = (b, a % b);
-    return a;
-  }
-  public static T LCM<T>(T a, T b) where T : IBinaryInteger<T>
-    => a/GCD(a,b)*b;
 }
 
 interface IMonoid<T>
