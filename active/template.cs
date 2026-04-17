@@ -1261,15 +1261,12 @@ static class Graph
     for(int k=0; k<p; ++k)
     {
       int ni=i+D[k], nj=j+D[k+1];
-      if(ni<0 || nj<0 || ni>=H || ni>=W) continue;
+      if(ni<0 || nj<0 || ni>=H || nj>=W) continue;
       yield return (ni, nj, k);
     }
     yield break;
   }
-  public static long MinPositive(long a, long b)
-  {
-    return (a < 0 || b < 0) ? Math.Max(a, b) : Math.Min(a, b);
-  }
+
   public static bool NextPermutation<T>(T[] a) where T : IComparable<T>
   {
     int n = a.Length;
@@ -1307,21 +1304,29 @@ static class Graph
 
   public static UnionFind SCC(List<int>[] graph, List<int>[] inv)
   {
-    int N=graph.Count();
+    int N=graph.Length;
 
     var seen=Nms.Array(N, false);
     var ck=Nms.Stack<int>();
     
-    var dfs=Nms.Stack<int>();
+    var dfs=Nms.Stack<(int, bool)>();
 
     for(int i=0; i<N; ++i) if (!seen[i])
     {
-      dfs.Push(i);
+      dfs.Push((i, false));
       while(dfs.Count>0)
       {
-        var u = dfs.Pop();
-        foreach(var v in graph[u]) if(!seen[u]) dfs.Push(v);
-        ck.Push(u);
+        var (u, post) = dfs.Pop();
+
+        if(post)
+        {
+          ck.Push(u); 
+          continue;
+        }
+
+        seen[u]=true;
+        dfs.Push((u, true));
+        foreach(var v in graph[u]) if(!seen[v]) dfs.Push((v, false));
       }
     }
 
@@ -1333,16 +1338,16 @@ static class Graph
     {
       var s=ck.Pop();
       if(seen[s]) continue;
-      dfs.Push(s);
+      dfs.Push((s, true));
 
       while(dfs.Count>0)
       {
-        int u=dfs.Pop();
+        var (u, _)=dfs.Pop();
         uf.Merge(u, s);
         foreach(var v in inv[u]) if(!seen[v])
         {
           seen[v]=true;
-          dfs.Push(v);
+          dfs.Push((v, true));
         }
       }
     }
@@ -1408,6 +1413,17 @@ static class Sugaku
     int n=b.Length;
     if((n&1)==1) return double.CreateChecked(b[n/2]);
     return double.CreateChecked(b[n/2-1]+b[n/2]) / 2.0;
+  }
+
+  public static T MinPositivePreferred<T>(T a, T b) where T : INumber<T>
+  {
+    bool pa=a>T.Zero;
+    bool pb=b>T.Zero;
+
+    if(pa&&pb) return T.Min(a, b);
+    if(pa) return a;
+    if(pb) return b;
+    return T.Min(a, b);
   }
 
   public static T PopCount<T>(T a) where T : IBinaryInteger<T>
