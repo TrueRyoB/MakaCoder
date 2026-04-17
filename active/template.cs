@@ -1355,6 +1355,7 @@ static class Graph
     return uf;
   }
 
+  // sus?
   public static T[] RootedTree<T>(List<int>[] edges, Func<T, T, T> op, T ide) where T: IBinaryInteger<T>
   {
     int N=edges.Length;
