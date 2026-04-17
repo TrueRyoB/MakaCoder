@@ -1400,9 +1400,9 @@ static class Graph
       for(int j=i+1; j<k; ++j) a[j]=a[j-1]+1;
     }
   }
-  public static void ForEachIndex(int M, Action<int> action)
+  public static IEnumerable<int> Rep(int M)
   {
-    for(int i=0; i<M; ++i) action(i);
+    for(int i=0; i<M; ++i) yield return i;
   }
 
   public static UnionFind SCC(List<int>[] graph, List<int>[] inv)
