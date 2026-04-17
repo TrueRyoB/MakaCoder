@@ -195,6 +195,107 @@ static class Nms
     => new(f, shape);
   public static StackArray<T> Stack<T>()
     => new StackArray<T>();
+  public static Deque<T> Deque<T>()
+    => new Deque<T>();
+  public static TopKSet<T> TopKSet<T>(int k, IComparer<T>? comp=null)
+    => new TopKSet<T>(k, comp);
+  public static Matrix<T> RegularMatrix<T>(int n, Func<T, T, T> add, Func<T, T, T> mul, T addIdentity, T mulIdentity, IEqualityComparer<T>? comparer = null)
+    => new Matrix<T>(n, add, mul, addIdentity, mulIdentity, comparer);
+  public static Dinic MaxFlowSolver<T>(int n)
+    => new Dinic(n);
+  public static LazySegment<TNode, TLazy> LazySegmentTree<TNode, TLazy>(int n,Func<TNode, TNode, TNode> op, TNode e, Func<TLazy, TNode, int, TNode> mapping, Func<TLazy, TLazy, TLazy> composition, TLazy id)
+    => new LazySegment<TNode, TLazy>(n, op, e, mapping, composition, id);
+  public static Segment<T> SegmentTree<T>(T identity, Func<T, T, T> op, int size, T val)
+    => new Segment<T>(identity, op, size, val);
+  public static Segment<T> SegmentTree<T>(T identity, Func<T, T, T> op, T[] data)
+    => new Segment<T>(identity, op, data);
+  public static UnionFind UnionFind(int n)
+    => new UnionFind(n);
+}
+
+sealed class Deque<T>(int capacity=16)
+{
+  private T[] _buf=new T[capacity];
+  private int _head=0;
+  private int _count=0;
+  public int Count => _count;
+  public int Capacity => _buf.Length;
+
+  private int ToIndex(int i)
+  {
+    int res=_head+i;
+    if(res>=Capacity) res-=Capacity;
+    return res;
+  }
+
+  public T this[int i]
+  {
+    get
+    {
+      if((uint)i>=(uint)_count) throw new ArgumentOutOfRangeException();
+      return _buf[ToIndex(i)];
+    }
+    set
+    {
+      if((uint)i>=(uint)_count) throw new ArgumentOutOfRangeException();
+      _buf[ToIndex(i)]=value;
+    }
+  }
+
+  public void PushBack(T val)
+  {
+    if(Count==Capacity) Expand();
+    _buf[ToIndex(_count++)]=val;
+  }
+
+  public void PushFront(T val)
+  {
+    if(_count==Capacity) Expand();
+    _head = (_head+Capacity-1)%Capacity;
+    _buf[_head]=val;
+    _count++;
+  }
+
+  public T PopBack()
+  {
+    if(_count==0) throw new InvalidOperationException();
+    int idx=ToIndex(_count-1);
+    T val=_buf[idx];
+    _count--;
+    return val;
+  }
+
+  public T PopFront()
+  {
+    if (_count == 0) throw new InvalidOperationException();
+    T val = _buf[_head];
+    _head = (_head + 1 == Capacity ? 0 : _head + 1);
+    _count--;
+    return val;
+  }
+
+  public T PeekFront()
+  {
+    if (_count == 0) throw new InvalidOperationException();
+    return _buf[_head];
+  }
+
+  public T PeekBack()
+  {
+    if (_count == 0) throw new InvalidOperationException();
+    return _buf[ToIndex(_count - 1)];
+  }
+
+  private void Expand()
+  {
+    int newCap = Capacity << 1;
+    var newBuf= new T[newCap];
+
+    for(int i=0; i<Count; ++i) newBuf[i]=this[i];
+
+    _buf=newBuf;
+    _head=0;
+  }
 }
 
 sealed class TopKSet<T>(int k, IComparer<T>? comp=null)
@@ -249,7 +350,6 @@ sealed class TopKSet<T>(int k, IComparer<T>? comp=null)
     return l;
   }
 }
-
 
 public static class JaggedArrayExt
 {
@@ -1203,7 +1303,7 @@ class UnionFind
     => size[Root(x)];
 }
 
-class StackArray<T>(int n = 100)
+class StackArray<T>(int n = 128)
 {
   private T[] v = new T[n];
   private int count = 0;
