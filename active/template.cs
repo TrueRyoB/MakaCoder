@@ -153,22 +153,28 @@ static class Nms
 
   public static int[] InOrder<T>(T[] a) where T : IComparable<T>
   {
-    var res = new int[a.Length];
-    var sorted = a.ToArray();
+    var sorted=a.ToArray();
     System.Array.Sort(sorted);
 
-    for (int i = 0; i < res.Length; ++i)
+    var uniq=new List<T>(sorted.Length);
+    foreach(var x in sorted)
     {
-      int l = 0, r = a.Length;
-      while (l + 1 < r)
-      {
-        int m = l + (r - l) / 2;
-        if (sorted[m].CompareTo(a[i]) <= 0) l = m;
-        else r = m;
-      }
-      res[i] = l;
+      if(uniq.Count==0 || uniq[^1].CompareTo(x)!=0) uniq.Add(x);
     }
 
+    var res=new int[a.Length];
+
+    for(int i=0; i<a.Length; ++i)
+    {
+      int l=-1, r=uniq.Count;
+      while(l+1<r)
+      {
+        int m=l+(r-l)/2;
+        if(uniq[m].CompareTo(a[i])<0) l=m;
+        else r=m;
+      }
+      res[i]=r;
+    }
     return res;
   }
 
