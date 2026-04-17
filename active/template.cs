@@ -1084,7 +1084,7 @@ class Segment<T>
     n = k;
     v = new T[2 * k];
 
-    for (int i = n; i < 2 * n; ++i) v[i] = data[i - n];
+    for(int i=0; i<n; ++i) v[i+n]=(i<data.Count) ? data[i] : ide;
     for (int i = n - 1; i >= 1; --i) v[i] = op(v[2 * i], v[2 * i + 1]);
   }
 
@@ -1105,12 +1105,10 @@ class Segment<T>
 
   public void Set(int i, T val)
   {
-    int u = i + n;
-    while (u > 0)
+    v[i+n]=val;
+    for(int u=(i+n)/2; u>0; u>>=1)
     {
-      if (u >= n) v[u] = val;
-      else v[u] = op(v[2 * u], v[2 * u + 1]);
-      u /= 2;
+      v[u]=op(v[2*u], v[2*u + 1]);
     }
   }
 
@@ -1124,6 +1122,7 @@ class Segment<T>
   }
 }
 
+// sus
 class UnionFind
 {
   private readonly int[] par;
