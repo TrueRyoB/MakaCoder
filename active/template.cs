@@ -731,6 +731,15 @@ class Count
 
   public long H(int a, int b)
     => C(a + b - 1, a - 1);
+  public static T GCD<T>(T a, T b) where T : IBinaryInteger<T>
+  {
+    a = T.Abs(a);
+    b = T.Abs(b);
+    while (b != T.Zero) (a, b) = (b, a % b);
+    return a;
+  }
+  public static T LCM<T>(T a, T b) where T : IBinaryInteger<T>
+    => a/GCD(a,b)*b;
 }
 
 interface IMonoid<T>
