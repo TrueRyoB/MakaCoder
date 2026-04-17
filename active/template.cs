@@ -191,6 +191,60 @@ static class Nms
     => new StackArray<T>();
 }
 
+sealed class TopKSet<T>(int k, IComparer<T>? comp=null)
+{
+  private readonly int k=k;
+  private readonly List<T> a=new();
+  private readonly IComparer<T> comp=comp??Comparer<T>.Default;
+  
+  public int Count=>a.Count;
+  public T this[int i] => a[i];
+
+  public void Push(T val)
+  {
+    int idx=LowerBound(val);
+    a.Insert(idx, val);
+    
+    if(a.Count>k) a.RemoveAt(0);
+  }
+
+  public T PopMin()
+  {
+    var v=a[0];
+    a.RemoveAt(0);
+    return v;
+  }
+  public T PopMax()
+  {
+    int last=a.Count-1;
+    var v=a[last];
+    a.RemoveAt(last);
+    return v;
+  }
+
+  public bool TryPop(T val)
+  {
+    int idx=LowerBound(val);
+    if(idx==a.Count || comp.Compare(a[idx], val)!=0) return false;
+
+    a.RemoveAt(idx);
+    return true;
+  }
+  
+  private int LowerBound(T val)
+  {
+    int l=-1, r=a.Count;
+    while(l+1<r)
+    {
+      int m=l+(r-l)/2;
+      if(comp.Compare(a[m], val)<=0) l=m;
+      else r=m;
+    }
+    return l;
+  }
+}
+
+
 public static class JaggedArrayExt
 {
   public static T[][] DeepCopy<T>(this T[][] a)
