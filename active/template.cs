@@ -250,7 +250,6 @@ sealed class TopKSet<T>(int k, IComparer<T>? comp=null)
   }
 }
 
-
 public static class JaggedArrayExt
 {
   public static T[][] DeepCopy<T>(this T[][] a)
@@ -1175,8 +1174,8 @@ class UnionFind
     w += Potential(x);
     w -= Potential(y);
 
-    x = Root(x);
-    y = Root(y);
+    x = par[x];
+    y = par[y];
 
     if (x == y) return false;
 
@@ -1196,7 +1195,7 @@ class UnionFind
     return true;
   }
 
-  public int Size()
+  public int Count()
     => components;
 
   public int Size(int x)
