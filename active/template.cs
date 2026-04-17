@@ -1215,7 +1215,7 @@ class StackArray<T>(int n = 100)
     if (count == n)
     {
       var x = new T[2 * n];
-      for (int i = 0; i < count; ++i) x[i] = v[i];
+      Array.Copy(v, x, count);
       v = x;
       n <<= 1;
     }
@@ -1231,7 +1231,9 @@ class StackArray<T>(int n = 100)
   public T Pop()
   {
     Validate(0);
-    return v[--count];
+    T item=v[--count];
+    v[count]=default!;
+    return item;
   }
 
   public int Count => count;
