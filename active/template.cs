@@ -1397,109 +1397,21 @@ static class Sugaku
   public const long MOD3 = 998244353L;
   public const int INF = 1001001001;
   public const long LINF = 1001001001001001001L;
-  public static readonly (int, int) NEG2 = (-1, -1);
 
-  public static T Median<T>(ReadOnlySpan<T> a) where T : INumber<T>
+  public static double Median<T>(ReadOnlySpan<T> a) where T : INumber<T>
   {
     if (a.Length == 0) throw new ArgumentException("empty");
 
-    var b = a.ToArray();
-    int n = b.Length;
+    var b=a.ToArray();
+    Array.Sort(b);
 
-    if ((n & 1) == 1) return Select(b, 0, n - 1, n >> 1);
-
-    var left = Select(b, 0, n - 1, (n >> 1) - 1);
-    var right = Select(b, 0, n - 1, n >> 1);
-    return (left + right) / T.CreateChecked(2);
+    int n=b.Length;
+    if((n&1)==1) return double.CreateChecked(b[n/2]);
+    return double.CreateChecked(b[n/2-1]+b[n/2]) / 2.0;
   }
 
-  private static T Select<T>(T[] a, int l, int r, int k) where T : INumber<T>
-  {
-    while (true)
-    {
-      if (l == r) return a[l];
-
-      int pivotIndex = MedianOfMedians(a, l, r);
-      var (lt, gt) = Partition3(a, l, r, a[pivotIndex]);
-
-      if (k < lt) r = lt - 1;
-      else if (k > gt) l = gt + 1;
-      else return a[k];
-    }
-  }
-
-  private static (int lt, int gt) Partition3<T>(T[] a, int l, int r, T pivot) where T : INumber<T>
-  {
-    int lt = l, i = l, gt = r;
-    while (i <= gt)
-    {
-      int cmp = a[i].CompareTo(pivot);
-      if (cmp < 0)
-      {
-        (a[lt], a[i]) = (a[i], a[lt]);
-        ++lt; ++i;
-      }
-      else if (cmp > 0)
-      {
-        (a[i], a[gt]) = (a[gt], a[i]);
-        --gt;
-      }
-      else
-      {
-        ++i;
-      }
-    }
-    return (lt, gt);
-  }
-
-  private static int MedianOfMedians<T>(T[] a, int l, int r) where T : INumber<T>
-  {
-    int n = r - l + 1;
-    if (n <= 5)
-    {
-      InsertionSort(a, l, r);
-      return l + n / 2;
-    }
-
-    int m = 0;
-    for (int i = l; i <= r; i += 5)
-    {
-      int subR = Math.Min(i + 4, r);
-      InsertionSort(a, i, subR);
-      int median = i + (subR - i) / 2;
-      (a[l + m], a[median]) = (a[median], a[l + m]);
-      m++;
-    }
-
-    return MedianOfMedians(a, l, l + m - 1);
-  }
-
-  private static void InsertionSort<T>(T[] a, int l, int r) where T : INumber<T>
-  {
-    for (int i = l + 1; i <= r; ++i)
-    {
-      var key = a[i];
-      int j = i - 1;
-      while (j >= l && a[j] > key)
-      {
-        a[j + 1] = a[j];
-        j--;
-      }
-      a[j + 1] = key;
-    }
-  }
-
-
-  public static int PopCount<T>(T a) where T : IBinaryInteger<T>
-  {
-    int cnt = 0;
-    while (a.CompareTo(T.Zero) > 0)
-    {
-      if ((a & T.One) == T.One) ++cnt;
-      a >>= 1;
-    }
-    return cnt;
-  }
+  public static T PopCount<T>(T a) where T : IBinaryInteger<T>
+   => T.PopCount(a);
   public static long Inv3(long b)
     => Pow3(b, MOD3 - 2);
   public static long Inv7(long b)
@@ -1523,7 +1435,7 @@ static class Sugaku
     return res;
   }
 
-  public static bool ChMax<T>(ref T a, T b) where T : IComparable<T>
+  public static bool ChMax<T>(ref T a, T b) where T : INumber<T>
   {
     if (a.CompareTo(b) < 0)
     {
@@ -1532,7 +1444,7 @@ static class Sugaku
     }
     return false;
   }
-  public static bool ChMin<T>(ref T a, T b) where T : IComparable<T>
+  public static bool ChMin<T>(ref T a, T b) where T : INumber<T>
   {
     if (a.CompareTo(b) > 0)
     {
