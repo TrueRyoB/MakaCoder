@@ -1,4 +1,10 @@
-using System.Text; using System.Numerics; using System.Runtime.CompilerServices; using System; using System.Collections.Generic; using System.Linq; using System.IO;
+using System.Text;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.IO;
 #nullable enable
 
 
@@ -91,7 +97,7 @@ static class Nms
   public static T[] PrefixFold<T>(T[] v, T ide, Func<T, T, T> op)
   {
     var a = new T[v.Length];
-    for (int i = 0; i< a.Length; ++i) a[i]=op(v[i], i > 0 ? a[i-1] : ide);
+    for (int i = 0; i < a.Length; ++i) a[i] = op(v[i], i > 0 ? a[i - 1] : ide);
     return a;
   }
   public static T[] SuffixFold<T, M>(ReadOnlySpan<T> v) where M : IMonoid<T>
@@ -103,7 +109,7 @@ static class Nms
   public static T[] SuffixFold<T>(T[] v, T ide, Func<T, T, T> op)
   {
     var a = new T[v.Length];
-    for (int i=a.Length-1; i>=0; --i) a[i]=op(v[i], i+1<a.Length ? a[i+1] : ide);
+    for (int i = a.Length - 1; i >= 0; --i) a[i] = op(v[i], i + 1 < a.Length ? a[i + 1] : ide);
     return a;
   }
   public static T[][] Matrix<T>(int h, int w, Func<T> f)
@@ -153,61 +159,61 @@ static class Nms
 
   public static int[] InOrder<T>(T[] a) where T : IComparable<T>
   {
-    var sorted=a.ToArray();
+    var sorted = a.ToArray();
     System.Array.Sort(sorted);
 
-    var uniq=new List<T>(sorted.Length);
-    foreach(var x in sorted)
+    var uniq = new List<T>(sorted.Length);
+    foreach (var x in sorted)
     {
-      if(uniq.Count==0 || uniq[^1].CompareTo(x)!=0) uniq.Add(x);
+      if (uniq.Count == 0 || uniq[^1].CompareTo(x) != 0) uniq.Add(x);
     }
 
-    var res=new int[a.Length];
+    var res = new int[a.Length];
 
-    for(int i=0; i<a.Length; ++i)
+    for (int i = 0; i < a.Length; ++i)
     {
-      int l=-1, r=uniq.Count;
-      while(l+1<r)
+      int l = -1, r = uniq.Count;
+      while (l + 1 < r)
       {
-        int m=l+(r-l)/2;
-        if(uniq[m].CompareTo(a[i])<0) l=m;
-        else r=m;
+        int m = l + (r - l) / 2;
+        if (uniq[m].CompareTo(a[i]) < 0) l = m;
+        else r = m;
       }
-      res[i]=r;
+      res[i] = r;
     }
     return res;
   }
 
   public static T[] SubArray<T>(ReadOnlySpan<T> a, ReadOnlySpan<int> index)
   {
-    foreach(var e in index) if(e<0 || e>=a.Length) throw new Exception("Out of bounds.");
+    foreach (var e in index) if (e < 0 || e >= a.Length) throw new Exception("Out of bounds.");
 
-    int n=index.Length;
+    int n = index.Length;
     var res = new T[n];
-    for(int i=0; i<n; ++i) res[i]=a[index[i]];
+    for (int i = 0; i < n; ++i) res[i] = a[index[i]];
     return res;
   }
   public static void Permutations(int n, Action<ReadOnlySpan<int>> action)
   {
-    if(n<=0) throw new Exception("Invalid array length");
-    if(n>=12) throw new Exception("TLE alert");
+    if (n <= 0) throw new Exception("Invalid array length");
+    if (n >= 12) throw new Exception("TLE alert");
 
-    var a=new int[n];
-    for (int i=0; i<n; ++i) a[i]=i;
+    var a = new int[n];
+    for (int i = 0; i < n; ++i) a[i] = i;
 
-    while(true)
+    while (true)
     {
       action(a.AsSpan());
 
-      int i=n-2;
-      while(i>=0 && a[i]>=a[i+1]) --i;
-      if(i<0) return;
+      int i = n - 2;
+      while (i >= 0 && a[i] >= a[i + 1]) --i;
+      if (i < 0) return;
 
-      int j=n-1;
-      while(a[i]>=a[j]) --j;
+      int j = n - 1;
+      while (a[i] >= a[j]) --j;
 
-      (a[i], a[j])=(a[j], a[i]);
-      System.Array.Reverse(a, i+1, n-i-1);
+      (a[i], a[j]) = (a[j], a[i]);
+      System.Array.Reverse(a, i + 1, n - i - 1);
     }
   }
   public static Tensor<T> Tensor<T>(T val, params int[] shape)
@@ -220,13 +226,13 @@ static class Nms
     => new StackArray<T>();
   public static Deque<T> Deque<T>()
     => new Deque<T>();
-  public static TopKSet<T> TopKSet<T>(int k, IComparer<T>? comp=null)
+  public static TopKSet<T> TopKSet<T>(int k, IComparer<T>? comp = null)
     => new TopKSet<T>(k, comp);
   public static Matrix<T> RegularMatrix<T>(int n, Func<T, T, T> add, Func<T, T, T> mul, T addIdentity, T mulIdentity, IEqualityComparer<T>? comparer = null)
     => new Matrix<T>(n, add, mul, addIdentity, mulIdentity, comparer);
   public static Dinic MaxFlowSolver<T>(int n)
     => new Dinic(n);
-  public static LazySegment<TNode, TLazy> LazySegmentTree<TNode, TLazy>(int n,Func<TNode, TNode, TNode> op, TNode e, Func<TLazy, TNode, int, TNode> mapping, Func<TLazy, TLazy, TLazy> composition, TLazy id)
+  public static LazySegment<TNode, TLazy> LazySegmentTree<TNode, TLazy>(int n, Func<TNode, TNode, TNode> op, TNode e, Func<TLazy, TNode, int, TNode> mapping, Func<TLazy, TLazy, TLazy> composition, TLazy id)
     => new LazySegment<TNode, TLazy>(n, op, e, mapping, composition, id);
   public static Segment<T> SegmentTree<T>(T identity, Func<T, T, T> op, int size, T val)
     => new Segment<T>(identity, op, size, val);
@@ -234,20 +240,203 @@ static class Nms
     => new Segment<T>(identity, op, data);
   public static UnionFind UnionFind(int n)
     => new UnionFind(n);
+  public static SortedSet<T> Set<T>()
+    => new SortedSet<T>();
+  public static IntervalSet IntervalSet()
+    => new IntervalSet();
 }
 
-sealed class Deque<T>(int capacity=16)
+public struct Interval : IComparable<Interval>
 {
-  private T[] _buf=new T[capacity];
-  private int _head=0;
-  private int _count=0;
+  public long L, R;
+  public Interval(long l, long r) { L = l; R = r; }
+  public int CompareTo(Interval other) => L.CompareTo(other.L);
+  public long Length => R - L;
+}
+
+/// <summary>
+/// 座標圧縮なしで区間を管理する Set (Chtholly Tree like structure)
+/// すべての区間は [L, R) の半開区間で管理され、互いに素（disjoint）です。
+/// </summary>
+public sealed class IntervalSet
+{
+  private readonly SortedSet<Interval> set = new SortedSet<Interval>();
+
+  public long TotalArea { get; private set; } = 0;
+  public int Count => set.Count;
+
+  public IntervalSet() { }
+
+  public long Add(long l, long r)
+  {
+    if (l >= r) return 0;
+
+    long prevArea = TotalArea;
+    var next = GetLowerBound(l);
+
+    var prev = GetLessEqual(l);
+    if (prev.HasValue && prev.Value.R >= l)
+    {
+      l = Math.Min(l, prev.Value.L);
+      r = Math.Max(r, prev.Value.R);
+      RemoveInternal(prev.Value);
+    }
+
+    foreach (var item in set.GetViewBetween(new Interval(l, 0), new Interval(r, long.MaxValue)))
+    {
+      r = Math.Max(r, item.R);
+    }
+
+
+    var targets = new List<Interval>();
+    foreach (var item in set.GetViewBetween(new Interval(l, 0), new Interval(r, long.MaxValue)))
+    {
+      targets.Add(item);
+    }
+    foreach (var t in targets) RemoveInternal(t);
+
+    var newInterval = new Interval(l, r);
+    AddInternal(newInterval);
+
+    return TotalArea - prevArea;
+  }
+  public long Remove(long l, long r)
+  {
+    if (l >= r) return 0;
+
+    long prevArea = TotalArea;
+    var targets = new List<Interval>();
+
+    var prev = GetLessEqual(l);
+    if (prev.HasValue && prev.Value.R > l) targets.Add(prev.Value);
+
+
+    foreach (var item in set.GetViewBetween(new Interval(l, 0), new Interval(r - 1, long.MaxValue)))
+    {
+      if (!targets.Contains(item)) targets.Add(item);
+    }
+
+    foreach (var t in targets)
+    {
+      RemoveInternal(t);
+      if (t.L < l) AddInternal(new Interval(t.L, l));
+      if (t.R > r) AddInternal(new Interval(r, t.R));
+    }
+
+    return TotalArea - prevArea;
+  }
+  public int RangeCount(long l, long r)
+  {
+    if(l>=r) return 0;
+    int cnt=0;
+    var it=GetLessEqual(l);
+    var startL=it.HasValue ? it.Value.L : l;
+
+    foreach(var item in set.GetViewBetween(new Interval(startL, 0), new Interval(r-1, long.MaxValue)))
+    {
+      if(Math.Max(l, item.L)<Math.Min(r, item.R)) ++cnt;
+    }
+    return cnt;
+  }
+  public long SumLength(long l, long r)
+  {
+    if (l >= r) return 0;
+    long sum = 0;
+
+    var it = GetLessEqual(l);
+    var startL = it.HasValue ? it.Value.L : l;
+
+    foreach (var item in set.GetViewBetween(new Interval(startL, 0), new Interval(r - 1, long.MaxValue)))
+    {
+      long overlapL = Math.Max(l, item.L);
+      long overlapR = Math.Min(r, item.R);
+      if (overlapL < overlapR) sum += (overlapR - overlapL);
+    }
+    return sum;
+  }
+
+  public (long length, long L, long R) GetInfo(long p)
+  {
+    var res = GetLessEqual(p);
+    if (res.HasValue && res.Value.L <= p && p < res.Value.R)
+    {
+      return (res.Value.Length, res.Value.L, res.Value.R);
+    }
+    return (0, 0, 0);
+  }
+  public Interval? LowerBound(long p)
+  {
+    var view = set.GetViewBetween(new Interval(p, long.MinValue), new Interval(long.MaxValue, long.MaxValue));
+    return view.Count > 0 ? view.Min : (Interval?)null;
+  }
+  public Interval? UpperBound(long p)
+  {
+    var view = set.GetViewBetween(new Interval(p + 1, long.MinValue), new Interval(long.MaxValue, long.MaxValue));
+    return view.Count > 0 ? view.Min : (Interval?)null;
+  }
+
+  public long Xor(long l, long r)
+  {
+    if (l >= r) return 0;
+    long prevArea = TotalArea;
+
+    var targets = new List<Interval>();
+    var prev = GetLessEqual(l);
+    if (prev.HasValue && prev.Value.R > l) targets.Add(prev.Value);
+    foreach (var item in set.GetViewBetween(new Interval(l, 0), new Interval(r - 1, long.MaxValue)))
+    {
+      if (!targets.Contains(item)) targets.Add(item);
+    }
+
+    List<Interval> nextIntervals = new List<Interval>();
+    long cur = l;
+    foreach (var t in targets)
+    {
+      if (cur < t.L) nextIntervals.Add(new Interval(cur, t.L));
+      if (t.L < l) nextIntervals.Add(new Interval(t.L, l));
+      if (t.R > r) nextIntervals.Add(new Interval(r, t.R));
+      cur = Math.Max(cur, t.R);
+    }
+    if (cur < r) nextIntervals.Add(new Interval(cur, r));
+
+    foreach (var t in targets) RemoveInternal(t);
+    foreach (var n in nextIntervals) AddInternal(n);
+
+    return TotalArea - prevArea;
+  }
+
+  private void AddInternal(Interval iv)
+  {
+    if (iv.L >= iv.R) return;
+    if (set.Add(iv)) TotalArea += iv.Length;
+  }
+
+  private void RemoveInternal(Interval iv)
+  {
+    if (set.Remove(iv)) TotalArea -= iv.Length;
+  }
+
+  private Interval? GetLessEqual(long l)
+  {
+    var view = set.GetViewBetween(new Interval(long.MinValue, 0), new Interval(l, long.MaxValue));
+    return view.Count > 0 ? view.Max : (Interval?)null;
+  }
+
+  private Interval? GetLowerBound(long l) => LowerBound(l);
+}
+
+sealed class Deque<T>(int capacity = 16)
+{
+  private T[] _buf = new T[capacity];
+  private int _head = 0;
+  private int _count = 0;
   public int Count => _count;
   public int Capacity => _buf.Length;
 
   private int ToIndex(int i)
   {
-    int res=_head+i;
-    if(res>=Capacity) res-=Capacity;
+    int res = _head + i;
+    if (res >= Capacity) res -= Capacity;
     return res;
   }
 
@@ -255,35 +444,35 @@ sealed class Deque<T>(int capacity=16)
   {
     get
     {
-      if((uint)i>=(uint)_count) throw new ArgumentOutOfRangeException();
+      if ((uint)i >= (uint)_count) throw new ArgumentOutOfRangeException();
       return _buf[ToIndex(i)];
     }
     set
     {
-      if((uint)i>=(uint)_count) throw new ArgumentOutOfRangeException();
-      _buf[ToIndex(i)]=value;
+      if ((uint)i >= (uint)_count) throw new ArgumentOutOfRangeException();
+      _buf[ToIndex(i)] = value;
     }
   }
 
   public void PushBack(T val)
   {
-    if(Count==Capacity) Expand();
-    _buf[ToIndex(_count++)]=val;
+    if (Count == Capacity) Expand();
+    _buf[ToIndex(_count++)] = val;
   }
 
   public void PushFront(T val)
   {
-    if(_count==Capacity) Expand();
-    _head = (_head+Capacity-1)%Capacity;
-    _buf[_head]=val;
+    if (_count == Capacity) Expand();
+    _head = (_head + Capacity - 1) % Capacity;
+    _buf[_head] = val;
     _count++;
   }
 
   public T PopBack()
   {
-    if(_count==0) throw new InvalidOperationException();
-    int idx=ToIndex(_count-1);
-    T val=_buf[idx];
+    if (_count == 0) throw new InvalidOperationException();
+    int idx = ToIndex(_count - 1);
+    T val = _buf[idx];
     _count--;
     return val;
   }
@@ -312,63 +501,63 @@ sealed class Deque<T>(int capacity=16)
   private void Expand()
   {
     int newCap = Capacity << 1;
-    var newBuf= new T[newCap];
+    var newBuf = new T[newCap];
 
-    for(int i=0; i<Count; ++i) newBuf[i]=this[i];
+    for (int i = 0; i < Count; ++i) newBuf[i] = this[i];
 
-    _buf=newBuf;
-    _head=0;
+    _buf = newBuf;
+    _head = 0;
   }
 }
 
-sealed class TopKSet<T>(int k, IComparer<T>? comp=null)
+sealed class TopKSet<T>(int k, IComparer<T>? comp = null)
 {
-  private readonly int k=k;
-  private readonly List<T> a=new();
-  private readonly IComparer<T> comp=comp??Comparer<T>.Default;
-  
-  public int Count=>a.Count;
+  private readonly int k = k;
+  private readonly List<T> a = new();
+  private readonly IComparer<T> comp = comp ?? Comparer<T>.Default;
+
+  public int Count => a.Count;
   public T this[int i] => a[i];
 
   public void Push(T val)
   {
-    int idx=LowerBound(val);
+    int idx = LowerBound(val);
     a.Insert(idx, val);
-    
-    if(a.Count>k) a.RemoveAt(0);
+
+    if (a.Count > k) a.RemoveAt(0);
   }
 
   public T PopMin()
   {
-    var v=a[0];
+    var v = a[0];
     a.RemoveAt(0);
     return v;
   }
   public T PopMax()
   {
-    int last=a.Count-1;
-    var v=a[last];
+    int last = a.Count - 1;
+    var v = a[last];
     a.RemoveAt(last);
     return v;
   }
 
   public bool TryPop(T val)
   {
-    int idx=LowerBound(val);
-    if(idx==a.Count || comp.Compare(a[idx], val)!=0) return false;
+    int idx = LowerBound(val);
+    if (idx == a.Count || comp.Compare(a[idx], val) != 0) return false;
 
     a.RemoveAt(idx);
     return true;
   }
-  
+
   private int LowerBound(T val)
   {
-    int l=-1, r=a.Count;
-    while(l+1<r)
+    int l = -1, r = a.Count;
+    while (l + 1 < r)
     {
-      int m=l+(r-l)/2;
-      if(comp.Compare(a[m], val)<=0) l=m;
-      else r=m;
+      int m = l + (r - l) / 2;
+      if (comp.Compare(a[m], val) <= 0) l = m;
+      else r = m;
     }
     return l;
   }
@@ -378,7 +567,7 @@ public static class StringExt
 {
   public static string Reverse(this string s)
   {
-    Span<char> span = s.Length<=256 ? stackalloc char[s.Length] : new char[s.Length];
+    Span<char> span = s.Length <= 256 ? stackalloc char[s.Length] : new char[s.Length];
 
     s.AsSpan().CopyTo(span);
     span.Reverse();
@@ -393,7 +582,7 @@ public static class JaggedArrayExt
   {
     var b = new T[a.Length][];
     for (int i = 0; i < a.Length; ++i)
-        b[i] = (T[])a[i].Clone();
+      b[i] = (T[])a[i].Clone();
     return b;
   }
 }
@@ -409,45 +598,45 @@ sealed class Tensor<T>
   public Tensor(Func<T> f, params int[] shape)
     : this(shape)
   {
-    for(int i=0; i<Data.Length; ++i) Data[i]=f();
+    for (int i = 0; i < Data.Length; ++i) Data[i] = f();
   }
   public Tensor(Func<int[], T> f, params int[] shape)
-    :this(shape)
+    : this(shape)
   {
-    var idx=new int[shape.Length];
+    var idx = new int[shape.Length];
 
     void Fill(int d)
     {
-      if(d==shape.Length)
+      if (d == shape.Length)
       {
-        Data[ToFlatDex(idx)]=f(idx);
+        Data[ToFlatDex(idx)] = f(idx);
         return;
       }
-      for(int i=0; i<shape[d]; ++i)
+      for (int i = 0; i < shape[d]; ++i)
       {
-        idx[d]=i;
-        Fill(d+1);
+        idx[d] = i;
+        Fill(d + 1);
       }
     }
     Fill(0);
   }
   private Tensor(int[] shape)
   {
-    Shape=shape;
-    Stride=new int[shape.Length];
+    Shape = shape;
+    Stride = new int[shape.Length];
 
-    int n=1;
-    for(int i=shape.Length-1; i>=0; --i)
+    int n = 1;
+    for (int i = shape.Length - 1; i >= 0; --i)
     {
-      Stride[i]=n;
-      n*=shape[i];
+      Stride[i] = n;
+      n *= shape[i];
     }
-    Data=new T[n];
+    Data = new T[n];
   }
   private int ToFlatDex(int[] idx)
   {
-    int k=0;
-    for(int i=0; i<idx.Length; ++i) k+=idx[i]*Stride[i];
+    int k = 0;
+    for (int i = 0; i < idx.Length; ++i) k += idx[i] * Stride[i];
     return k;
   }
   public T this[params int[] idx]
@@ -455,28 +644,28 @@ sealed class Tensor<T>
     get
      => Data[ToFlatDex(idx)];
     set
-     => Data[ToFlatDex(idx)]=value;
+     => Data[ToFlatDex(idx)] = value;
   }
   public override string ToString()
   {
-    var sb=new StringBuilder();
-    var idx=new int[Shape.Length];
+    var sb = new StringBuilder();
+    var idx = new int[Shape.Length];
 
     void BuildString(int d)
     {
-      if(d==Shape.Length)
+      if (d == Shape.Length)
       {
-        var v=Data[ToFlatDex(idx)];
+        var v = Data[ToFlatDex(idx)];
         sb.Append(v?.ToString());
         return;
       }
       sb.Append('[');
-      
-      for(int i=0; i<Shape[d]; ++i)
+
+      for (int i = 0; i < Shape[d]; ++i)
       {
-        if(i>0) sb.Append(", ");
-        idx[d]=i;
-        BuildString(d+1);
+        if (i > 0) sb.Append(", ");
+        idx[d] = i;
+        BuildString(d + 1);
       }
       sb.Append(']');
     }
@@ -754,15 +943,6 @@ class Count
 
   public long H(int a, int b)
     => C(a + b - 1, a - 1);
-  public static T GCD<T>(T a, T b) where T : IBinaryInteger<T>
-  {
-    a = T.Abs(a);
-    b = T.Abs(b);
-    while (b != T.Zero) (a, b) = (b, a % b);
-    return a;
-  }
-  public static T LCM<T>(T a, T b) where T : IBinaryInteger<T>
-    => a/GCD(a,b)*b;
 }
 
 interface IMonoid<T>
@@ -793,11 +973,11 @@ static class Binary<T> where T : IBinaryInteger<T>
       => Add(a, b, mod7);
   }
 
-  public struct Sum : IMonoid<T> 
+  public struct Sum : IMonoid<T>
   {
     public static T Id => T.Zero;
-    public static T Op(T a, T b) 
-     => a+b;
+    public static T Op(T a, T b)
+     => a + b;
   }
 
   public static T Mul(T a, T b, T mod)
@@ -1229,7 +1409,7 @@ class Segment<T>
     n = k;
     v = new T[2 * k];
 
-    for(int i=0; i<n; ++i) v[i+n]=(i<data.Count) ? data[i] : ide;
+    for (int i = 0; i < n; ++i) v[i + n] = (i < data.Count) ? data[i] : ide;
     for (int i = n - 1; i >= 1; --i) v[i] = op(v[2 * i], v[2 * i + 1]);
   }
 
@@ -1250,10 +1430,10 @@ class Segment<T>
 
   public void Set(int i, T val)
   {
-    v[i+n]=val;
-    for(int u=(i+n)/2; u>0; u>>=1)
+    v[i + n] = val;
+    for (int u = (i + n) / 2; u > 0; u >>= 1)
     {
-      v[u]=op(v[2*u], v[2*u + 1]);
+      v[u] = op(v[2 * u], v[2 * u + 1]);
     }
   }
 
@@ -1375,8 +1555,8 @@ class StackArray<T>(int n = 128)
   public T Pop()
   {
     Validate(0);
-    T item=v[--count];
-    v[count]=default!;
+    T item = v[--count];
+    v[count] = default!;
     return item;
   }
 
@@ -1402,12 +1582,12 @@ static class Graph
   public static readonly int[] D = [-1, 0, 1, 0, -1, -1, 1, 1, -1];
   public const int TRUE = 1;
   public const int FALSE = 0;
-  public static IEnumerable<(int, int, int)> Adjacent(int i, int j, int H, int W, int p=4)
+  public static IEnumerable<(int, int, int)> Adjacent(int i, int j, int H, int W, int p = 4)
   {
-    for(int k=0; k<p; ++k)
+    for (int k = 0; k < p; ++k)
     {
-      int ni=i+D[k], nj=j+D[k+1];
-      if(ni<0 || nj<0 || ni>=H || nj>=W) continue;
+      int ni = i + D[k], nj = j + D[k + 1];
+      if (ni < 0 || nj < 0 || ni >= H || nj >= W) continue;
       yield return (ni, nj, k);
     }
     yield break;
@@ -1431,50 +1611,50 @@ static class Graph
   }
   public static void ForEachCombination(int n, int k, Action<ReadOnlySpan<int>> action)
   {
-    var a=new int[k];
-    for(int i=0; i<k; ++i) a[i]=i;
-    
-    while(true)
+    var a = new int[k];
+    for (int i = 0; i < k; ++i) a[i] = i;
+
+    while (true)
     {
       action(a.AsSpan());
 
-      int i=k-1;
-      for(; i>=0; --i) if(a[i]!=i+n-k) break;
-      if(i<0) return;
+      int i = k - 1;
+      for (; i >= 0; --i) if (a[i] != i + n - k) break;
+      if (i < 0) return;
       a[i]++;
-      for(int j=i+1; j<k; ++j) a[j]=a[j-1]+1;
+      for (int j = i + 1; j < k; ++j) a[j] = a[j - 1] + 1;
     }
   }
   public static IEnumerable<int> Rep(int M)
   {
-    for(int i=0; i<M; ++i) yield return i;
+    for (int i = 0; i < M; ++i) yield return i;
   }
 
   public static UnionFind SCC(List<int>[] graph, List<int>[] inv)
   {
-    int N=graph.Length;
+    int N = graph.Length;
 
-    var seen=Nms.Array(N, false);
-    var ck=Nms.Stack<int>();
-    
-    var dfs=Nms.Stack<(int, bool)>();
+    var seen = Nms.Array(N, false);
+    var ck = Nms.Stack<int>();
 
-    for(int i=0; i<N; ++i) if (!seen[i])
+    var dfs = Nms.Stack<(int, bool)>();
+
+    for (int i = 0; i < N; ++i) if (!seen[i])
     {
       dfs.Push((i, false));
-      while(dfs.Count>0)
+      while (dfs.Count > 0)
       {
         var (u, post) = dfs.Pop();
 
-        if(post)
+        if (post)
         {
-          ck.Push(u); 
+          ck.Push(u);
           continue;
         }
 
-        seen[u]=true;
+        seen[u] = true;
         dfs.Push((u, true));
-        foreach(var v in graph[u]) if(!seen[v]) dfs.Push((v, false));
+        foreach (var v in graph[u]) if (!seen[v]) dfs.Push((v, false));
       }
     }
 
@@ -1482,19 +1662,19 @@ static class Graph
 
     var uf = new UnionFind(N);
 
-    while(ck.Count>0)
+    while (ck.Count > 0)
     {
-      var s=ck.Pop();
-      if(seen[s]) continue;
+      var s = ck.Pop();
+      if (seen[s]) continue;
       dfs.Push((s, true));
 
-      while(dfs.Count>0)
+      while (dfs.Count > 0)
       {
-        var (u, _)=dfs.Pop();
+        var (u, _) = dfs.Pop();
         uf.Merge(u, s);
-        foreach(var v in inv[u]) if(!seen[v])
+        foreach (var v in inv[u]) if (!seen[v])
         {
-          seen[v]=true;
+          seen[v] = true;
           dfs.Push((v, true));
         }
       }
@@ -1504,38 +1684,38 @@ static class Graph
   }
 
   // sus?
-  public static T[] RootedTree<T>(List<int>[] edges, Func<T, T, T> op, T ide) where T: IBinaryInteger<T>
+  public static T[] RootedTree<T>(List<int>[] edges, Func<T, T, T> op, T ide) where T : IBinaryInteger<T>
   {
-    int N=edges.Length;
-    var dp=Nms.Array(N, T.Zero);
+    int N = edges.Length;
+    var dp = Nms.Array(N, T.Zero);
 
     void bottomup(int u, int p)
     {
-      dp[u]=ide;
-      foreach(var v in edges[u]) if(v != p)
+      dp[u] = ide;
+      foreach (var v in edges[u]) if (v != p)
       {
         bottomup(v, u);
-        dp[u]=op(dp[u], dp[v]);
+        dp[u] = op(dp[u], dp[v]);
       }
     }
     bottomup(0, -1);
 
-    var res=Nms.Array(N, T.Zero);
+    var res = Nms.Array(N, T.Zero);
 
     void topdown(int u, int p)
     {
-      int M=edges[u].Count;
+      int M = edges[u].Count;
 
       var sdp = Nms.SubArray<T>(dp, edges[u].ToArray());
-      
-      var prefix=Nms.PrefixFold<T>(sdp, ide, op);
-      var suffix=Nms.SuffixFold<T>(sdp, ide, op);
 
-      res[u]=prefix[M-1];
+      var prefix = Nms.PrefixFold<T>(sdp, ide, op);
+      var suffix = Nms.SuffixFold<T>(sdp, ide, op);
 
-      for(int i=0; i<M; ++i) if(edges[u][i]!=p)
+      res[u] = prefix[M - 1];
+
+      for (int i = 0; i < M; ++i) if (edges[u][i] != p)
       {
-        dp[u]=op(i>0 ? prefix[i-1] : ide, i+1<M ? suffix[i+1] : ide);
+        dp[u] = op(i > 0 ? prefix[i - 1] : ide, i + 1 < M ? suffix[i + 1] : ide);
         topdown(edges[u][i], u);
       }
     }
@@ -1552,15 +1732,25 @@ static class Sugaku
   public const int INF = 1001001001;
   public const long LINF = 1001001001001001001L;
 
+  public static T GCD<T>(T a, T b) where T : IBinaryInteger<T>
+  {
+    a = T.Abs(a);
+    b = T.Abs(b);
+    while (b != T.Zero) (a, b) = (b, a % b);
+    return a;
+  }
+  public static T LCM<T>(T a, T b) where T : IBinaryInteger<T>
+    => a / GCD(a, b) * b;
+
   public static string ToBase(long N, int k)
   {
-    if(k>=10 || k<1) throw new Exception("Invalid base number.");
-    string res="";
-    while(N>0)
+    if (k >= 10 || k < 1) throw new Exception("Invalid base number.");
+    string res = "";
+    while (N > 0)
     {
-      char c=(char)((N%k)+'0');
-      res+=c;
-      N/=k;
+      char c = (char)((N % k) + '0');
+      res += c;
+      N /= k;
     }
     return res.Reverse();
   }
@@ -1569,22 +1759,22 @@ static class Sugaku
   {
     if (a.Length == 0) throw new ArgumentException("empty");
 
-    var b=a.ToArray();
+    var b = a.ToArray();
     Array.Sort(b);
 
-    int n=b.Length;
-    if((n&1)==1) return double.CreateChecked(b[n/2]);
-    return double.CreateChecked(b[n/2-1]+b[n/2]) / 2.0;
+    int n = b.Length;
+    if ((n & 1) == 1) return double.CreateChecked(b[n / 2]);
+    return double.CreateChecked(b[n / 2 - 1] + b[n / 2]) / 2.0;
   }
 
   public static T MinPositivePreferred<T>(T a, T b) where T : INumber<T>
   {
-    bool pa=a>T.Zero;
-    bool pb=b>T.Zero;
+    bool pa = a > T.Zero;
+    bool pb = b > T.Zero;
 
-    if(pa&&pb) return T.Min(a, b);
-    if(pa) return a;
-    if(pb) return b;
+    if (pa && pb) return T.Min(a, b);
+    if (pa) return a;
+    if (pb) return b;
     return T.Min(a, b);
   }
 
