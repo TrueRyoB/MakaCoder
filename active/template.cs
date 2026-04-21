@@ -920,6 +920,7 @@ class Count
 
   public Count(int n, long mod)
   {
+    ++n;
     this.n = n;
     this.mod = mod;
     fact = new long[n];
@@ -929,7 +930,7 @@ class Count
 
     inv = new long[n];
     inv[n - 1] = Sugaku.ModPow(fact[n - 1], mod - 2, mod);
-    for (int i = n - 2; i >= 0; --i) inv[i] = inv[i + 1] * (i + 2) % mod;
+    for (int i = n - 2; i >= 0; --i) inv[i] = inv[i + 1] * (i + 1) % mod;
   }
 
   public long C(int a, int b)
