@@ -1515,6 +1515,10 @@ class UnionFind
 
     return true;
   }
+  public void Roots(Action<int> action)
+  {
+    for(int i=0; i<par.Length; ++i) if(Root(i)==i) action(i);
+  }
 
   public int Size()
     => components;
