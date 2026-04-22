@@ -1,4 +1,10 @@
-using System.Text; using System.Numerics; using System.Runtime.CompilerServices; using System; using System.Collections.Generic; using System.Linq; using System.IO; 
+using System.Text;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.IO;
 #nullable enable
 
 
@@ -222,8 +228,8 @@ static class Nms
     => new Deque<T>();
   public static TopKSet<T> TopKSet<T>(int k, IComparer<T>? comp = null)
     => new TopKSet<T>(k, comp);
-  public static Matrix<T> RegularMatrix<T>(int n, Func<T, T, T> add, Func<T, T, T> mul, T addIdentity, T mulIdentity, IEqualityComparer<T>? comparer = null)
-    => new Matrix<T>(n, add, mul, addIdentity, mulIdentity, comparer);
+  public static MatrixMod MatrixMod<T>(int rows, int cols, long mod)
+    => new MatrixMod(rows, cols, mod);
   public static Dinic MaxFlowSolver<T>(int n)
     => new Dinic(n);
   public static LazySegment<TNode, TLazy> LazySegmentTree<TNode, TLazy>(int n, Func<TNode, TNode, TNode> op, TNode e, Func<TLazy, TNode, int, TNode> mapping, Func<TLazy, TLazy, TLazy> composition, TLazy id)
@@ -321,14 +327,14 @@ public sealed class IntervalSet
   }
   public int RangeCount(long l, long r)
   {
-    if(l>=r) return 0;
-    int cnt=0;
-    var it=GetLessEqual(l);
-    var startL=it.HasValue ? it.Value.L : l;
+    if (l >= r) return 0;
+    int cnt = 0;
+    var it = GetLessEqual(l);
+    var startL = it.HasValue ? it.Value.L : l;
 
-    foreach(var item in set.GetViewBetween(new Interval(startL, 0), new Interval(r-1, long.MaxValue)))
+    foreach (var item in set.GetViewBetween(new Interval(startL, 0), new Interval(r - 1, long.MaxValue)))
     {
-      if(Math.Max(l, item.L)<Math.Min(r, item.R)) ++cnt;
+      if (Math.Max(l, item.L) < Math.Min(r, item.R)) ++cnt;
     }
     return cnt;
   }
@@ -668,94 +674,132 @@ sealed class Tensor<T>
   }
 }
 
-sealed class Matrix<T>
+public sealed class MatrixMod
 {
-  private readonly T[] data;
+  private readonly long[,] a;
 
-  public int N { get; }
-  public Func<T, T, T> Add { get; }
-  public Func<T, T, T> Mul { get; }
-  public T AddIdentity { get; }
-  public T MulIdentity { get; }
-  private readonly IEqualityComparer<T> comparer;
+  public int Rows { get; }
+  public int Cols { get; }
+  public long Mod { get; }
 
-  public Matrix(
-      int n,
-      Func<T, T, T> add,
-      Func<T, T, T> mul,
-      T addIdentity,
-      T mulIdentity,
-      IEqualityComparer<T>? comparer = null)
+  public MatrixMod(int rows, int cols, long mod)
   {
-    if (n <= 0) throw new ArgumentOutOfRangeException(nameof(n));
-    N = n;
-    Add = add ?? throw new ArgumentNullException(nameof(add));
-    Mul = mul ?? throw new ArgumentNullException(nameof(mul));
-    AddIdentity = addIdentity;
-    MulIdentity = mulIdentity;
-    this.comparer = comparer ?? EqualityComparer<T>.Default;
+    if (rows <= 0) throw new ArgumentOutOfRangeException(nameof(rows));
+    if (cols <= 0) throw new ArgumentOutOfRangeException(nameof(cols));
+    if (mod <= 0) throw new ArgumentOutOfRangeException(nameof(mod));
 
-    data = new T[n * n];
-    Array.Fill(data, addIdentity);
+    Rows = rows;
+    Cols = cols;
+    Mod = mod;
+    a = new long[rows, cols];
   }
 
-  [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  private int Idx(int i, int j) => i * N + j;
-
-  public T this[int i, int j]
+  private MatrixMod(long[,] src, long mod)
   {
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    get => data[Idx(i, j)];
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    set => data[Idx(i, j)] = value;
+    Rows = src.GetLength(0);
+    Cols = src.GetLength(1);
+    Mod = mod;
+    a = (long[,])src.Clone();
   }
 
-  public static Matrix<T> Identity(
-      int n,
-      Func<T, T, T> add,
-      Func<T, T, T> mul,
-      T addIdentity,
-      T mulIdentity,
-      IEqualityComparer<T>? comparer = null)
+  public long this[int r, int c]
   {
-    var m = new Matrix<T>(n, add, mul, addIdentity, mulIdentity, comparer);
-    for (int i = 0; i < n; i++)
-      m.data[i * n + i] = mulIdentity;
+    get => a[r, c];
+    set => a[r, c] = Normalize(value);
+  }
+
+  private long Normalize(long x)
+  {
+    x %= Mod;
+    if (x < 0) x += Mod;
+    return x;
+  }
+
+  private long Add(long x, long y)
+  {
+    x = Normalize(x);
+    y = Normalize(y);
+    return x >= Mod - y ? x - (Mod - y) : x + y;
+  }
+
+  private long Sub(long x, long y)
+  {
+    x = Normalize(x);
+    y = Normalize(y);
+    return x >= y ? x - y : x + (Mod - y);
+  }
+
+  private long Mul(long x, long y)
+  {
+    x = Normalize(x);
+    y = Normalize(y);
+    return (long)((BigInteger)x * y % Mod);
+  }
+
+  private bool TryModInverse(long x, out long inv)
+  {
+    x = Normalize(x);
+    if (x == 0)
+    {
+      inv = 0;
+      return false;
+    }
+
+    BigInteger a = x, b = Mod;
+    BigInteger u = 1, v = 0;
+
+    while (b != 0)
+    {
+      BigInteger q = a / b;
+      (a, b) = (b, a - q * b);
+      (u, v) = (v, u - q * v);
+    }
+
+    if (a != 1)
+    {
+      inv = 0;
+      return false;
+    }
+
+    inv = (long)((u % Mod + Mod) % Mod);
+    return true;
+  }
+
+  private void SwapRows(int r1, int r2)
+  {
+    if (r1 == r2) return;
+
+    for (int j = 0; j < Cols; j++)
+      (a[r1, j], a[r2, j]) = (a[r2, j], a[r1, j]);
+  }
+
+  public static MatrixMod Identity(int n, long mod)
+  {
+    var m = new MatrixMod(n, n, mod);
+    for (int i = 0; i < n; i++) m.a[i, i] = 1 % mod;
     return m;
   }
 
-  public Matrix<T> Multiply(Matrix<T> other)
+  public MatrixMod Clone() => new MatrixMod(a, Mod);
+
+  public MatrixMod Multiply(MatrixMod other)
   {
     if (other is null) throw new ArgumentNullException(nameof(other));
-    if (N != other.N) throw new ArgumentException("Matrix size mismatch.");
+    if (Cols != other.Rows) throw new ArgumentException("Matrix size mismatch.");
+    if (Mod != other.Mod) throw new ArgumentException("Mod mismatch.");
 
-    int n = N;
-    var res = new Matrix<T>(n, Add, Mul, AddIdentity, MulIdentity, comparer);
+    var res = new MatrixMod(Rows, other.Cols, Mod);
 
-    var a = data;
-    var b = other.data;
-    var c = res.data;
-
-    var add = Add;
-    var mul = Mul;
-    var zero = AddIdentity;
-    var eq = comparer;
-
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < Rows; i++)
     {
-      int rowA = i * n;
-      int rowC = i * n;
-
-      for (int k = 0; k < n; k++)
+      for (int k = 0; k < Cols; k++)
       {
-        T aik = a[rowA + k];
-        if (eq.Equals(aik, zero)) continue;
+        long aik = a[i, k];
+        if (aik == 0) continue;
 
-        int rowB = k * n;
-        for (int j = 0; j < n; j++)
+        for (int j = 0; j < other.Cols; j++)
         {
-          int idx = rowC + j;
-          c[idx] = add(c[idx], mul(aik, b[rowB + j]));
+          res.a[i, j] = Add(res.a[i, j], Mul(aik, other.a[k, j]));
         }
       }
     }
@@ -763,23 +807,115 @@ sealed class Matrix<T>
     return res;
   }
 
-  public Matrix<T> Pow(long exp)
+  public MatrixMod Pow(long exp)
   {
     if (exp < 0) throw new ArgumentOutOfRangeException(nameof(exp));
+    if (Rows != Cols) throw new InvalidOperationException("Pow is only available for square matrices.");
 
-    int n = N;
-    var result = Identity(n, Add, Mul, AddIdentity, MulIdentity, comparer);
-    var baseMat = this;
-    long e = exp;
+    var result = Identity(Rows, Mod);
+    var baseMat = Clone();
 
-    while (e > 0)
+    while (exp > 0)
     {
-      if ((e & 1) != 0) result = result.Multiply(baseMat);
-      e >>= 1;
-      if (e > 0) baseMat = baseMat.Multiply(baseMat);
+      if ((exp & 1) != 0) result = result.Multiply(baseMat);
+      exp >>= 1;
+      if (exp > 0) baseMat = baseMat.Multiply(baseMat);
     }
 
     return result;
+  }
+
+  // reduced = true  -> RREF まで掃き出す
+  // reduced = false -> 上三角っぽい形まで
+  public int GaussJordan(bool reduced = true)
+  {
+    int rank = 0;
+
+    for (int col = 0, row = 0; col < Cols && row < Rows; col++)
+    {
+      int pivot = -1;
+      long pivotInv = 0;
+
+      for (int i = row; i < Rows; i++)
+      {
+        if (TryModInverse(a[i, col], out pivotInv))
+        {
+          pivot = i;
+          break;
+        }
+      }
+
+      if (pivot == -1) continue;
+
+      SwapRows(row, pivot);
+
+      // pivot row を 1 に正規化
+      for (int j = col; j < Cols; j++)
+        a[row, j] = Mul(a[row, j], pivotInv);
+
+      if (reduced)
+      {
+        // 上下両方を消す
+        for (int i = 0; i < Rows; i++)
+        {
+          if (i == row) continue;
+          long factor = a[i, col];
+          if (factor == 0) continue;
+
+          for (int j = col; j < Cols; j++)
+            a[i, j] = Sub(a[i, j], Mul(factor, a[row, j]));
+        }
+      }
+      else
+      {
+        // 下だけ消す
+        for (int i = row + 1; i < Rows; i++)
+        {
+          long factor = a[i, col];
+          if (factor == 0) continue;
+
+          for (int j = col; j < Cols; j++)
+            a[i, j] = Sub(a[i, j], Mul(factor, a[row, j]));
+        }
+      }
+
+      row++;
+      rank++;
+    }
+
+    return rank;
+  }
+
+  public int Rank()
+  {
+    var tmp = Clone();
+    return tmp.GaussJordan(reduced: false);
+  }
+
+  public MatrixMod Inverse()
+  {
+    if (Rows != Cols) throw new InvalidOperationException("Inverse is only available for square matrices.");
+
+    int n = Rows;
+    var aug = new MatrixMod(n, n * 2, Mod);
+
+    for (int i = 0; i < n; i++)
+    {
+      for (int j = 0; j < n; j++)
+        aug.a[i, j] = a[i, j];
+
+      aug.a[i, n + i] = 1 % Mod;
+    }
+
+    int rank = aug.GaussJordan(reduced: true);
+    if (rank != n) throw new InvalidOperationException("Matrix is not invertible under this modulus.");
+
+    var inv = new MatrixMod(n, n, Mod);
+    for (int i = 0; i < n; i++)
+      for (int j = 0; j < n; j++)
+        inv.a[i, j] = aug.a[i, n + j];
+
+    return inv;
   }
 }
 
@@ -1517,7 +1653,7 @@ class UnionFind
   }
   public void Roots(Action<int> action)
   {
-    for(int i=0; i<par.Length; ++i) if(Root(i)==i) action(i);
+    for (int i = 0; i < par.Length; ++i) if (Root(i) == i) action(i);
   }
 
   public int Size()
