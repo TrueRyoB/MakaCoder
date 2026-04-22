@@ -228,7 +228,7 @@ static class Nms
     => new Deque<T>();
   public static TopKSet<T> TopKSet<T>(int k, IComparer<T>? comp = null)
     => new TopKSet<T>(k, comp);
-  public static MatrixMod MatrixMod<T>(int rows, int cols, long mod)
+  public static MatrixMod MatrixMod(int rows, int cols, long mod)
     => new MatrixMod(rows, cols, mod);
   public static Dinic MaxFlowSolver<T>(int n)
     => new Dinic(n);
