@@ -455,6 +455,9 @@ class AvlSet<T> : IEnumerable<T>
     return count;
   }
 
+  public int CountMoreThan(T key)
+    => CountLessThanOrEqual(this.Max) - CountLessThan(key);
+
   /// <summary>key 以下の要素の個数を返す。O(log N)</summary>
   public int CountLessThanOrEqual(T key)
   {
