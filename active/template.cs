@@ -238,6 +238,73 @@ static class Nms
     => new AvlSet<T>();
   public static IntervalSet IntervalSet()
     => new IntervalSet();
+  public static WrappedDictionary<T, U> Dictionary<T, U>() where T:notnull
+    => new WrappedDictionary<T, U>();
+}
+
+sealed class WrappedDictionary<T, U> : IEnumerable<T> where T : notnull
+{
+  private readonly Dictionary<T, U> _dict;
+  private readonly Func<U> _factory;
+
+  public WrappedDictionary(Func<U>? factory = null, IEqualityComparer<T>? comparer = null)
+  {
+    _dict = new Dictionary<T, U>(comparer);
+    _factory = factory ?? Activator.CreateInstance<U>;
+  }
+
+  public U this[T key]
+  {
+    get
+    {
+      if (!_dict.TryGetValue(key, out var value))
+      {
+        value = _factory();
+        _dict[key] = value;
+      }
+      return value;
+    }
+    set
+    {
+      _dict[key] = value;
+    }
+  }
+
+  public bool TryGetValue(T key, out U value)
+      => _dict.TryGetValue(key, out value!);
+
+  public bool ContainsKey(T key)
+      => _dict.ContainsKey(key);
+
+  public bool Remove(T key)
+      => _dict.Remove(key);
+
+  public void Clear()
+      => _dict.Clear();
+
+  public int Count => _dict.Count;
+
+  public ICollection<T> Keys => _dict.Keys;
+  public ICollection<U> Values => _dict.Values;
+
+  public void Add(T key, U value)
+      => _dict.Add(key, value);
+
+  public U Ensure(T key)
+  {
+    if (!_dict.TryGetValue(key, out var value))
+    {
+      value = _factory();
+      _dict[key] = value;
+    }
+    return value;
+  }
+
+  public IEnumerator<T> GetEnumerator()
+      => _dict.Keys.GetEnumerator();
+
+  System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+      => GetEnumerator();
 }
 
 class AvlSet<T> : IEnumerable<T>
@@ -664,7 +731,6 @@ class AvlSet<T> : IEnumerable<T>
     }
   }
 }
-
 
 public struct Interval : IComparable<Interval>
 {
