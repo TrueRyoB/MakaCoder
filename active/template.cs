@@ -58,6 +58,7 @@ var sb = new StringBuilder();
 
 
 
+
 Console.Write(sb.ToString());
 return 0;
 
@@ -140,15 +141,79 @@ static class Nms
   {
     return a ? "Yes\n" : "No\n";
   }
-  public static List<int>[] Graph(int n)
+  public static List<T>[] Graph<T>(int n)
   {
-    var a = new List<int>[n];
+    var a = new List<T>[n];
     for (int i = 0; i < n; ++i) a[i] = [];
     return a;
   }
-  public static void Mwah(bool b = true)
+  public static List<int>[] Graph(int n)
+    => Graph<int>(n);
+
+  public static List<T>[] Graph<T>(int n, int m, FastScanner fs)
   {
-    if (b) Console.WriteLine("MWAH!");
+    var g = Graph<T>(n);
+
+    if (typeof(T) == typeof(int))
+    {
+      while (m-- > 0)
+      {
+        var (a, b) = fs.Int2();
+        --a; --b;
+
+        g[a].Add((T)(object)b);
+        g[b].Add((T)(object)a);
+      }
+      return g;
+    }
+
+    if (typeof(T) == typeof((int to, long cost)))
+    {
+      while (m-- > 0)
+      {
+        var (a, b) = fs.Int2();
+        var c = fs.Long();
+        --a; --b;
+
+        g[a].Add((T)(object)(b, c));
+        g[b].Add((T)(object)(a, c));
+      }
+      return g;
+    }
+
+    throw new NotSupportedException($"Graph<{typeof(T).Name}> is not supported.");
+  }
+
+  public static List<T>[] DirectedGraph<T>(int n, int m, FastScanner fs)
+  {
+    var g = Graph<T>(n);
+
+    if (typeof(T) == typeof(int))
+    {
+      while (m-- > 0)
+      {
+        var (a, b) = fs.Int2();
+        --a; --b;
+
+        g[a].Add((T)(object)b);
+      }
+      return g;
+    }
+
+    if (typeof(T) == typeof((int to, long cost)))
+    {
+      while (m-- > 0)
+      {
+        var (a, b) = fs.Int2();
+        var c = fs.Long();
+        --a; --b;
+
+        g[a].Add((T)(object)(b, c));
+      }
+      return g;
+    }
+
+    throw new NotSupportedException($"DirectedGraph<{typeof(T).Name}> is not supported.");
   }
 
   public static int[] InOrder<T>(T[] a) where T : IComparable<T>
@@ -238,7 +303,7 @@ static class Nms
     => new AvlSet<T>();
   public static IntervalSet IntervalSet()
     => new IntervalSet();
-  public static WrappedDictionary<T, U> Dictionary<T, U>() where T:notnull
+  public static WrappedDictionary<T, U> Dictionary<T, U>() where T : notnull
     => new WrappedDictionary<T, U>();
 }
 
@@ -2518,6 +2583,14 @@ class FastScanner
 
   public (long, long, long, long) Long4()
     => (Long(), Long(), Long(), Long());
+  
+  public int[] Digits()
+  {
+    var s=this.String();
+    var res=new int[s.Length];
+    for(int i=0; i<s.Length; ++i) res[i]=s[i]-'0';
+    return res;
+  }
 
   public string String()
   {
