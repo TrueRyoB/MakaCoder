@@ -1,4 +1,10 @@
-using System.Text;using System.Numerics;using System.Runtime.CompilerServices;using System;using System.Collections.Generic;using System.Linq;using System.IO;
+using System.Text;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.IO;
 #nullable enable
 
 
@@ -305,6 +311,127 @@ static class Nms
     => new IntervalSet();
   public static WrappedDictionary<T, U> Dictionary<T, U>() where T : notnull
     => new WrappedDictionary<T, U>();
+  public static PriorityQueue<T, U> PriorityQueue<T, U>()
+    => new PriorityQueue<T, U>();
+  public static RollingHashDeque RollingHash()
+    => new RollingHashDeque();
+}
+
+sealed class RollingHashDeque
+{
+  private const ulong MOD = (1UL << 61) - 1;
+  private readonly ulong _base;
+  private readonly ulong _baseInv;
+
+  private readonly LinkedList<char> _window = new();
+  private readonly List<ulong> _powers = new() { 1 };
+  private ulong _currentHash = 0;
+
+  public RollingHashDeque(ulong? seedBase = null)
+  {
+    var rand = new Random();
+    _base = seedBase ?? (ulong)rand.Next(1000, 1000000);
+    if (_base % 2 == 0) _base++;
+
+    _baseInv = ModPow(_base, MOD - 2);
+  }
+
+  public ulong Peek() => _currentHash;
+
+  public ulong PushFront(char c)
+  {
+    int len = _window.Count;
+    EnsurePower(len);
+
+    ulong term = Mul(Cast(c), _powers[len]);
+    _currentHash = Add(_currentHash, term);
+
+    _window.AddFirst(c);
+    return _currentHash;
+  }
+
+  public ulong PushBack(char c)
+  {
+    _currentHash = Add(Mul(_currentHash, _base), Cast(c));
+
+    _window.AddLast(c);
+    return _currentHash;
+  }
+
+  public ulong PopFront()
+  {
+    if (_window.Count == 0) throw new InvalidOperationException("Deque is empty");
+
+    char c = _window.First!.Value;
+    int len = _window.Count;
+
+    ulong term = Mul(Cast(c), _powers[len - 1]);
+    _currentHash = Sub(_currentHash, term);
+
+    _window.RemoveFirst();
+    return _currentHash;
+  }
+
+  public ulong PopBack()
+  {
+    if (_window.Count == 0) throw new InvalidOperationException("Deque is empty");
+
+    char c = _window.Last!.Value;
+
+    _currentHash = Mul(Sub(_currentHash, Cast(c)), _baseInv);
+
+    _window.RemoveLast();
+    return _currentHash;
+  }
+
+  public int Count => _window.Count;
+
+  #region Helper Methods (Modular Arithmetic)
+
+  private static ulong Cast(char c) => (ulong)c;
+
+  private static ulong Add(ulong a, ulong b)
+  {
+    ulong res = a + b;
+    if (res >= MOD) res -= MOD;
+    return res;
+  }
+
+  private static ulong Sub(ulong a, ulong b)
+  {
+    return a >= b ? a - b : a + MOD - b;
+  }
+
+  private static ulong Mul(ulong a, ulong b)
+  {
+   UInt128 res = (UInt128)a * b;
+    ulong low = (ulong)res & MOD;
+    ulong high = (ulong)(res >> 61);
+    return Add(low, high);
+  }
+
+  private static ulong ModPow(ulong @base, ulong exp)
+  {
+    ulong res = 1;
+    @base %= MOD;
+    while (exp > 0)
+    {
+      if ((exp & 1) == 1) res = Mul(res, @base);
+      @base = Mul(@base, @base);
+      exp >>= 1;
+    }
+    return res;
+  }
+
+  private void EnsurePower(int n)
+  {
+    while (_powers.Count <= n)
+    {
+      _powers.Add(Mul(_powers[^1], _base));
+    }
+  }
+
+  #endregion
 }
 
 sealed class WrappedDictionary<T, U> : IEnumerable<T> where T : notnull
@@ -2583,12 +2710,12 @@ class FastScanner
 
   public (long, long, long, long) Long4()
     => (Long(), Long(), Long(), Long());
-  
+
   public int[] Digits()
   {
-    var s=this.String();
-    var res=new int[s.Length];
-    for(int i=0; i<s.Length; ++i) res[i]=s[i]-'0';
+    var s = this.String();
+    var res = new int[s.Length];
+    for (int i = 0; i < s.Length; ++i) res[i] = s[i] - '0';
     return res;
   }
 
