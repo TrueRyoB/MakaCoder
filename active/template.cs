@@ -1,9 +1,15 @@
-using System.Text;using System.Numerics;using System.Runtime.CompilerServices;using System;using System.Collections.Generic;using System.Linq;using System.IO;
+using System.Text;using System.Numerics;using System.Runtime.CompilerServices;using System;using System.Collections.Generic;using System.Linq;using System.IO;using System.Security.Cryptography;
 #nullable enable
 
 
 var fs = new FastScanner();
 var sb = new StringBuilder();
+
+
+
+
+
+
 
 
 
@@ -307,126 +313,321 @@ static class Nms
     => new WrappedDictionary<T, U>();
   public static PriorityQueue<T, U> PriorityQueue<T, U>()
     => new PriorityQueue<T, U>();
-  public static RollingHashDeque RollingHash()
-    => new RollingHashDeque();
+  public static RollingHashDeque<T> RollingHash<T>()
+    => new RollingHashDeque<T>();
+  public static RollingHashDeque<T> RollingHash<T>(T[] init)
+    => new RollingHashDeque<T>(init);
 }
 
-sealed class RollingHashDeque
+public sealed class RollingHashDeque<T>
 {
-  private const ulong MOD = (1UL << 61) - 1;
-  private readonly ulong _base;
-  private readonly ulong _baseInv;
+  private T[] _buf;
+  private int _head;
+  private int _count;
 
-  private readonly LinkedList<char> _window = new();
-  private readonly List<ulong> _powers = new() { 1 };
-  private ulong _currentHash = 0;
+  // Shared per closed generic type, so hashes are comparable between instances.
+  private static readonly ulong B1;
+  private static readonly ulong B2;
+  private static readonly ulong InvB1;
+  private static readonly ulong InvB2;
+  private static readonly ulong Salt1;
+  private static readonly ulong Salt2;
+  private static readonly ulong MixSalt;
 
-  public RollingHashDeque(ulong? seedBase = null)
+  private ulong _h1;
+  private ulong _h2;
+  private ulong _pow1; // B1^Count
+  private ulong _pow2; // B2^Count
+
+  static RollingHashDeque()
   {
-    var rand = new Random();
-    _base = seedBase ?? (ulong)rand.Next(1000, 1000000);
-    if (_base % 2 == 0) _base++;
+    ulong s = NextU64();
 
-    _baseInv = ModPow(_base, MOD - 2);
+    B1 = RandomOddNotOne(ref s);
+    B2 = RandomOddNotOne(ref s);
+    while (B2 == B1) B2 = RandomOddNotOne(ref s);
+
+    InvB1 = ModInversePow2(B1);
+    InvB2 = ModInversePow2(B2);
+
+    Salt1 = SplitMix64(ref s);
+    Salt2 = SplitMix64(ref s);
+    MixSalt = SplitMix64(ref s);
   }
 
-  public ulong Peek() => _currentHash;
-
-  public ulong PushFront(char c)
+  public RollingHashDeque()
   {
-    int len = _window.Count;
-    EnsurePower(len);
-
-    ulong term = Mul(Cast(c), _powers[len]);
-    _currentHash = Add(_currentHash, term);
-
-    _window.AddFirst(c);
-    return _currentHash;
+    _buf = new T[4];
+    _head = 0;
+    _count = 0;
+    _h1 = 0;
+    _h2 = 0;
+    _pow1 = 1;
+    _pow2 = 1;
   }
 
-  public ulong PushBack(char c)
+  public RollingHashDeque(T[] init) : this()
   {
-    _currentHash = Add(Mul(_currentHash, _base), Cast(c));
+    if (init == null) throw new ArgumentNullException(nameof(init));
+    foreach (var v in init) PushBack(v);
+  }
 
-    _window.AddLast(c);
-    return _currentHash;
+  public ulong Peek() => MixPair(_h1, _h2);
+
+  public ulong Assign(T[] arr)
+  {
+    this.Clear();
+    foreach(var e in arr) this.PushFront(e);
+    return Peek();
+  }
+
+  public ulong PushFront(T val)
+  {
+    EnsureCapacity(_count + 1);
+
+    if (--_head < 0) _head += _buf.Length;
+    _buf[_head] = val;
+
+    var (x1, x2) = Fingerprint(val);
+
+    _h1 = unchecked(x1 * _pow1 + _h1);
+    _h2 = unchecked(x2 * _pow2 + _h2);
+
+    _pow1 = unchecked(_pow1 * B1);
+    _pow2 = unchecked(_pow2 * B2);
+
+    _count++;
+    return Peek();
+  }
+
+  public ulong PushBack(T val)
+  {
+    EnsureCapacity(_count + 1);
+
+    int tail = _head + _count;
+    if (tail >= _buf.Length) tail -= _buf.Length;
+    _buf[tail] = val;
+
+    var (x1, x2) = Fingerprint(val);
+
+    _h1 = unchecked(_h1 * B1 + x1);
+    _h2 = unchecked(_h2 * B2 + x2);
+
+    _pow1 = unchecked(_pow1 * B1);
+    _pow2 = unchecked(_pow2 * B2);
+
+    _count++;
+    return Peek();
   }
 
   public ulong PopFront()
   {
-    if (_window.Count == 0) throw new InvalidOperationException("Deque is empty");
+    if (_count == 0) throw new InvalidOperationException("RollingHashDeque is empty.");
 
-    char c = _window.First!.Value;
-    int len = _window.Count;
+    T val = _buf[_head];
+    var (x1, x2) = Fingerprint(val);
 
-    ulong term = Mul(Cast(c), _powers[len - 1]);
-    _currentHash = Sub(_currentHash, term);
+    ulong newPow1 = unchecked(_pow1 * InvB1);
+    ulong newPow2 = unchecked(_pow2 * InvB2);
 
-    _window.RemoveFirst();
-    return _currentHash;
+    _h1 = unchecked(_h1 - x1 * newPow1);
+    _h2 = unchecked(_h2 - x2 * newPow2);
+
+    _pow1 = newPow1;
+    _pow2 = newPow2;
+
+    if (++_head == _buf.Length) _head = 0;
+
+    _count--;
+    if (_count == 0)
+    {
+      _head = 0;
+      _pow1 = 1;
+      _pow2 = 1;
+      _h1 = 0;
+      _h2 = 0;
+    }
+
+    return Peek();
   }
 
   public ulong PopBack()
   {
-    if (_window.Count == 0) throw new InvalidOperationException("Deque is empty");
+    if (_count == 0) throw new InvalidOperationException("RollingHashDeque is empty.");
 
-    char c = _window.Last!.Value;
+    int tail = _head + _count - 1;
+    if (tail >= _buf.Length) tail -= _buf.Length;
 
-    _currentHash = Mul(Sub(_currentHash, Cast(c)), _baseInv);
+    T val = _buf[tail];
+    var (x1, x2) = Fingerprint(val);
 
-    _window.RemoveLast();
-    return _currentHash;
-  }
+    _h1 = unchecked((_h1 - x1) * InvB1);
+    _h2 = unchecked((_h2 - x2) * InvB2);
 
-  public int Count => _window.Count;
+    _pow1 = unchecked(_pow1 * InvB1);
+    _pow2 = unchecked(_pow2 * InvB2);
 
-  #region Helper Methods (Modular Arithmetic)
-
-  private static ulong Cast(char c) => (ulong)c;
-
-  private static ulong Add(ulong a, ulong b)
-  {
-    ulong res = a + b;
-    if (res >= MOD) res -= MOD;
-    return res;
-  }
-
-  private static ulong Sub(ulong a, ulong b)
-  {
-    return a >= b ? a - b : a + MOD - b;
-  }
-
-  private static ulong Mul(ulong a, ulong b)
-  {
-   UInt128 res = (UInt128)a * b;
-    ulong low = (ulong)res & MOD;
-    ulong high = (ulong)(res >> 61);
-    return Add(low, high);
-  }
-
-  private static ulong ModPow(ulong @base, ulong exp)
-  {
-    ulong res = 1;
-    @base %= MOD;
-    while (exp > 0)
+    _count--;
+    if (_count == 0)
     {
-      if ((exp & 1) == 1) res = Mul(res, @base);
-      @base = Mul(@base, @base);
-      exp >>= 1;
+      _head = 0;
+      _pow1 = 1;
+      _pow2 = 1;
+      _h1 = 0;
+      _h2 = 0;
     }
-    return res;
+
+    return Peek();
   }
 
-  private void EnsurePower(int n)
+  public int Count() => _count;
+
+  public ulong Parse(T[] arr)
   {
-    while (_powers.Count <= n)
+    if (arr == null) throw new ArgumentNullException(nameof(arr));
+
+    ulong h1 = 0, h2 = 0;
+    foreach (var v in arr)
     {
-      _powers.Add(Mul(_powers[^1], _base));
+      var (x1, x2) = Fingerprint(v);
+      h1 = unchecked(h1 * B1 + x1);
+      h2 = unchecked(h2 * B2 + x2);
+    }
+    return MixPair(h1, h2);
+  }
+
+  public void Clear()
+  {
+    _head = 0;
+    _count = 0;
+    _h1 = 0;
+    _h2 = 0;
+    _pow1 = 1;
+    _pow2 = 1;
+  }
+
+  public T this[int k]
+  {
+    get
+    {
+      if ((uint)k >= (uint)_count) throw new IndexOutOfRangeException();
+      int idx = _head + k;
+      if (idx >= _buf.Length) idx -= _buf.Length;
+      return _buf[idx];
     }
   }
 
-  #endregion
+  private void EnsureCapacity(int needed)
+  {
+    if (_buf.Length >= needed) return;
+
+    int newCap = _buf.Length << 1;
+    if (newCap < needed) newCap = needed;
+
+    T[] nb = new T[newCap];
+
+    if (_count > 0)
+    {
+      int right = Math.Min(_buf.Length - _head, _count);
+      Array.Copy(_buf, _head, nb, 0, right);
+      int left = _count - right;
+      if (left > 0) Array.Copy(_buf, 0, nb, right, left);
+    }
+
+    _buf = nb;
+    _head = 0;
+  }
+
+  private static (ulong, ulong) Fingerprint(T value)
+  {
+    ulong raw = Encode(value);
+    return (Mix64(raw ^ Salt1), Mix64(raw ^ Salt2));
+  }
+
+  private static ulong Encode(T value)
+  {
+    object? o = value;
+    if (o == null) return 0UL;
+
+    return o switch
+    {
+      byte v => v,
+      sbyte v => unchecked((ulong)(long)v),
+      short v => unchecked((ulong)(long)v),
+      ushort v => v,
+      int v => unchecked((ulong)(long)v),
+      uint v => v,
+      long v => unchecked((ulong)v),
+      ulong v => v,
+      char v => v,
+      bool v => v ? 1UL : 0UL,
+      _ => unchecked((ulong)o.GetHashCode())
+    };
+  }
+
+  private static ulong MixPair(ulong a, ulong b)
+  {
+    return Mix64(a ^ RotL(b, 23) ^ MixSalt);
+  }
+
+  private static ulong Mix64(ulong x)
+  {
+    unchecked
+    {      
+      x ^= x >> 30;
+      x *= 0xBF58476D1CE4E5B9UL;
+      x ^= x >> 27;
+      x *= 0x94D049BB133111EBUL;
+      x ^= x >> 31;
+      return x;
+    }
+  }
+
+  private static ulong RotL(ulong x, int k)
+      => (x << k) | (x >> (64 - k));
+
+  private static ulong ModInversePow2(ulong x)
+  {
+    // x must be odd.
+    unchecked
+    {
+      ulong inv = 1;
+      for (int i = 0; i < 6; i++)
+        inv *= 2 - x * inv;
+      return inv;
+    }
+  }
+
+  private static ulong RandomOddNotOne(ref ulong s)
+  {
+    ulong x;
+    do
+    {
+      x = SplitMix64(ref s) | 1UL;
+    } while (x == 1UL);
+    return x;
+  }
+
+  private static ulong SplitMix64(ref ulong x)
+  {
+    unchecked
+    {
+      x += 0x9E3779B97F4A7C15UL;
+      ulong z = x;
+      z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9UL;
+      z = (z ^ (z >> 27)) * 0x94D049BB133111EBUL;
+      return z ^ (z >> 31);
+    }
+  }
+
+  private static ulong NextU64()
+  {
+    Span<byte> b = stackalloc byte[8];
+    RandomNumberGenerator.Fill(b);
+    return BitConverter.ToUInt64(b);
+  }
 }
+
 
 sealed class WrappedDictionary<T, U> : IEnumerable<T> where T : notnull
 {
