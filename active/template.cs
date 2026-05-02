@@ -63,8 +63,6 @@ var sb = new StringBuilder();
 
 
 
-
-
 Console.Write(sb.ToString());
 return 0;
 
@@ -281,6 +279,13 @@ static class Nms
       System.Array.Reverse(a, i + 1, n - i - 1);
     }
   }
+
+  public static IEnumerable<int> Range(int n, bool foward)
+  {
+    if(foward) for(int i=0; i<n; ++i) yield return i;
+    else for(int i=n-1; i>=0; --i) yield return i;
+  }
+
   public static Tensor<T> Tensor<T>(T val, params int[] shape)
     => new(val, shape);
   public static Tensor<T> Tensor<T>(Func<T> f, params int[] shape)
