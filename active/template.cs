@@ -2738,6 +2738,38 @@ static class Graph
   }
 }
 
+static class Geom
+{
+  public static T Count<T>(T l, T r) where T : IBinaryInteger<T>
+    => T.Max(T.Zero, r-l+T.One);
+  
+  public static T SafeSqrt<T>(T val) where T : IRootFunctions<T>, INumber<T>
+    => T.Max(T.One, T.Sqrt(val));
+
+  public static long Cross((long x, long y) a, (long x, long y) b)
+    => a.x * b.y - a.y*b.x;
+
+  public static int Half((long x, long y) p)
+    => (p.y > 0 || p.y==0 && p.x>0) ? 0 : 1;
+  
+  public static long Norm((long x, long y) a)
+    => a.x * a.x + a.y * a.y;
+  
+  public static int Azicomp((long x, long y) a, (long x, long y) b)
+  {
+    int ha=Half(a), hb=Half(b);
+
+    if(ha!=hb) return ha-hb;
+
+    long crs=Cross(a, b);
+
+    if(crs>0) return -1;
+    if(crs<0) return 1;
+
+    return Norm(a).CompareTo(Norm(b));
+  }
+}
+
 static class Sugaku
 {
   public const long MOD7 = 1000000007L;
