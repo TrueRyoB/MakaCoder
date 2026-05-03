@@ -1,4 +1,11 @@
-using System.Text;using System.Numerics;using System.Runtime.CompilerServices;using System;using System.Collections.Generic;using System.Linq;using System.IO;using System.Security.Cryptography;
+using System.Text;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.IO;
+using System.Security.Cryptography;
 #nullable enable
 
 
@@ -282,8 +289,8 @@ static class Nms
 
   public static IEnumerable<int> Range(int n, bool foward)
   {
-    if(foward) for(int i=0; i<n; ++i) yield return i;
-    else for(int i=n-1; i>=0; --i) yield return i;
+    if (foward) for (int i = 0; i < n; ++i) yield return i;
+    else for (int i = n - 1; i >= 0; --i) yield return i;
   }
 
   public static Tensor<T> Tensor<T>(T val, params int[] shape)
@@ -322,6 +329,60 @@ static class Nms
     => new RollingHashDeque<T>();
   public static RollingHashDeque<T> RollingHash<T>(T[] init)
     => new RollingHashDeque<T>(init);
+  public static FenwickTree<T> Fenwick<T>(int n) where T : IBinaryInteger<T>
+    => new FenwickTree<T>(n);
+}
+
+sealed class FenwickTree<T> where T : IBinaryInteger<T>
+{
+  private readonly int n;
+  private readonly T[] data; // Fenwick
+  private readonly T[] arr;  // 実値を保持
+
+  public FenwickTree(int n)
+  {
+    this.n = n;
+    data = new T[n + 1]; // 1-indexed
+    arr = new T[n];
+  }
+
+  // A[k] += x
+  public void Add(int k, T x)
+  {
+    arr[k] += x;
+    for (int i = k + 1; i <= n; i += i & -i)
+      data[i] += x;
+  }
+
+  // A[k] = x
+  public void Set(int k, T x)
+  {
+    T diff = x - arr[k];
+    arr[k] = x;
+    for (int i = k + 1; i <= n; i += i & -i)
+      data[i] += diff;
+  }
+
+  // [0, r]
+  public T Sum(int r)
+  {
+    T res = T.Zero;
+    for (int i = r+1; i > 0; i -= i & -i)
+      res += data[i];
+    return res;
+  }
+
+  // [l, r)
+  public T Sum(int l, int r)
+  {
+    return Sum(r+1) - Sum(l);
+  }
+
+  public T this[int k]
+  {
+    get => arr[k];
+    set => Set(k, value);
+  }
 }
 
 public sealed class RollingHashDeque<T>
@@ -382,7 +443,7 @@ public sealed class RollingHashDeque<T>
   public ulong Assign(T[] arr)
   {
     this.Clear();
-    foreach(var e in arr) this.PushFront(e);
+    foreach (var e in arr) this.PushFront(e);
     return Peek();
   }
 
@@ -578,7 +639,7 @@ public sealed class RollingHashDeque<T>
   private static ulong Mix64(ulong x)
   {
     unchecked
-    {      
+    {
       x ^= x >> 30;
       x *= 0xBF58476D1CE4E5B9UL;
       x ^= x >> 27;
@@ -632,7 +693,6 @@ public sealed class RollingHashDeque<T>
     return BitConverter.ToUInt64(b);
   }
 }
-
 
 sealed class WrappedDictionary<T, U> : IEnumerable<T> where T : notnull
 {
@@ -2735,38 +2795,6 @@ static class Graph
     topdown(0, -1);
 
     return res;
-  }
-}
-
-static class Geom
-{
-  public static T Count<T>(T l, T r) where T : IBinaryInteger<T>
-    => T.Max(T.Zero, r-l+T.One);
-  
-  public static T SafeSqrt<T>(T val) where T : IRootFunctions<T>, INumber<T>
-    => T.Max(T.One, T.Sqrt(val));
-
-  public static long Cross((long x, long y) a, (long x, long y) b)
-    => a.x * b.y - a.y*b.x;
-
-  public static int Half((long x, long y) p)
-    => (p.y > 0 || p.y==0 && p.x>0) ? 0 : 1;
-  
-  public static long Norm((long x, long y) a)
-    => a.x * a.x + a.y * a.y;
-  
-  public static int Azicomp((long x, long y) a, (long x, long y) b)
-  {
-    int ha=Half(a), hb=Half(b);
-
-    if(ha!=hb) return ha-hb;
-
-    long crs=Cross(a, b);
-
-    if(crs>0) return -1;
-    if(crs<0) return 1;
-
-    return Norm(a).CompareTo(Norm(b));
   }
 }
 
