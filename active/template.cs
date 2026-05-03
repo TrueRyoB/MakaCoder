@@ -1,16 +1,14 @@
-using System.Text;
-using System.Numerics;
-using System.Runtime.CompilerServices;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.IO;
-using System.Security.Cryptography;
+using System.Text; using System.Numerics; using System.Runtime.CompilerServices; using System; using System.Collections.Generic; using System.Linq; using System.IO; using System.Security.Cryptography;
 #nullable enable
 
 
 var fs = new FastScanner();
 var sb = new StringBuilder();
+
+
+
+
+
 
 
 
@@ -2933,7 +2931,12 @@ class FastScanner
     }
     int val = c - '0';
     while ((c = Read()) >= '0')
-      val = val * 10 + c - '0';
+    {
+      checked
+      {
+        val = val * 10 + c - '0';
+      }
+    }
     return val * sign;
   }
 
@@ -2970,6 +2973,9 @@ class FastScanner
 
   public (long, long, long, long) Long4()
     => (Long(), Long(), Long(), Long());
+  
+  public (int, long) IntLong()
+    => (Int(), Long());
 
   public int[] Digits()
   {
@@ -2991,6 +2997,11 @@ class FastScanner
     } while (c > ' ');
     return sb.ToString();
   }
+  public (string, string) String2()
+    => (String(), String());
+  public (string, string, string) String3()
+    => (String(), String(), String());
+
   public double Double()
   {
     int c;
@@ -3051,6 +3062,11 @@ class FastScanner
 
     return val * sign;
   }
+
+  public (double, double) Double2()
+    => (Double(), Double());
+  public (double, double, double) Double3()
+    => (Double(), Double(), Double());
 
   public char Char()
   {
