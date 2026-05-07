@@ -317,6 +317,14 @@ static class Nms
     => new UnionFind(n);
   public static AvlSet<T> Set<T>() where T : IComparable<T>
     => new AvlSet<T>();
+  public static AvlSet<T> Set<T>(bool allowDuplicates) where T : IComparable<T>
+    => new AvlSet<T>(allowDuplicates);
+  public static AvlSet<T> Set<T>(params T[] vals) where T : IComparable<T>
+    => new AvlSet<T>(vals);
+  public static AvlSet<T> Set<T>(bool allowDuplicates, params T[] vals) where T : IComparable<T>
+    => new AvlSet<T>(allowDuplicates, vals);
+  public static System.Collections.Generic.Queue<T> Queue<T>()
+    => new System.Collections.Generic.Queue<T>();
   public static IntervalSet IntervalSet()
     => new IntervalSet();
   public static WrappedDictionary<T, U> Dictionary<T, U>() where T : notnull
