@@ -315,7 +315,7 @@ static class Nms
     => new Segment<T>(identity, op, data);
   public static UnionFind UnionFind(int n)
     => new UnionFind(n);
-  public static AvlSet<T> Set<T>()
+  public static AvlSet<T> Set<T>() where T : IComparable<T>
     => new AvlSet<T>();
   public static IntervalSet IntervalSet()
     => new IntervalSet();
@@ -365,7 +365,7 @@ sealed class FenwickTree<T> where T : IBinaryInteger<T>
   public T Sum(int r)
   {
     T res = T.Zero;
-    for (int i = r+1; i > 0; i -= i & -i)
+    for (int i = r + 1; i > 0; i -= i & -i)
       res += data[i];
     return res;
   }
@@ -373,7 +373,7 @@ sealed class FenwickTree<T> where T : IBinaryInteger<T>
   // [l, r)
   public T Sum(int l, int r)
   {
-    return Sum(r+1) - Sum(l);
+    return Sum(r + 1) - Sum(l);
   }
 
   public T this[int k]
@@ -757,430 +757,454 @@ sealed class WrappedDictionary<T, U> : IEnumerable<T> where T : notnull
       => GetEnumerator();
 }
 
-class AvlSet<T> : IEnumerable<T>
+class AvlSet<T> : IEnumerable<T> where T : IComparable<T>
 {
-  // -------------------------------------------------------------------------
-  // 内部ノード
-  // -------------------------------------------------------------------------
+  // ─────────────────────────────────────────────────────────────────────────
+  // Node
+  // ─────────────────────────────────────────────────────────────────────────
   private sealed class Node
   {
     public T Key;
-    public Node? Left, Right;
-    public int Height, Size;
+    public int Count;   // multiplicity (always 1 when allowDuplicates=false)
+    public int Size;    // subtree total element count (sum of multiplicities)
+    public int Height;
+    public Node? Left, Right;   // FIX CS8618: nullable
 
     public Node(T key)
     {
       Key = key;
-      Height = 1;
+      Count = 1;
       Size = 1;
+      Height = 1;
     }
   }
 
-  // -------------------------------------------------------------------------
-  // フィールド
-  // -------------------------------------------------------------------------
-  private Node? _root;
-  private readonly IComparer<T> _cmp;
+  // ─────────────────────────────────────────────────────────────────────────
+  // Fields
+  // ─────────────────────────────────────────────────────────────────────────
+  private Node? _root;            // FIX CS8618: nullable
+  private readonly bool _allowDuplicates;
 
-  // -------------------------------------------------------------------------
-  // コンストラクタ
-  // -------------------------------------------------------------------------
-  public AvlSet() : this(Comparer<T>.Default) { }
+  // ─────────────────────────────────────────────────────────────────────────
+  // Constructors
+  // ─────────────────────────────────────────────────────────────────────────
 
-  public AvlSet(IComparer<T> comparer)
+  /// <summary>Create an empty set. Pass allowDuplicates=true for multiset behaviour.</summary>
+  public AvlSet(bool allowDuplicates = false)
   {
-    _cmp = comparer ?? throw new ArgumentNullException(nameof(comparer));
-    _root = null;
+    _allowDuplicates = allowDuplicates;
   }
 
-  // -------------------------------------------------------------------------
-  // 公開プロパティ
-  // -------------------------------------------------------------------------
-
-  /// <summary>現在の要素数。</summary>
-  public int Count => Size(_root);
-
-  // -------------------------------------------------------------------------
-  // 公開メソッド
-  // -------------------------------------------------------------------------
-
-  /// <summary>全要素を削除する。</summary>
-  public void Clear() => _root = null;
-
-  /// <summary>key が集合に含まれるか判定する。O(log N)</summary>
-  public bool Contains(T key)
+  /// <summary>Create a set pre-loaded with the given values.</summary>
+  public AvlSet(params T[] vals) : this(false)
   {
-    var cur = _root;
-    while (cur != null)
-    {
-      int c = _cmp.Compare(key, cur.Key);
-      if (c < 0) cur = cur.Left;
-      else if (c > 0) cur = cur.Right;
-      else return true;
-    }
-    return false;
+    foreach (var v in vals) Add(v);
+  }
+
+  /// <summary>Create a set/multiset pre-loaded with the given values.</summary>
+  public AvlSet(bool allowDuplicates, params T[] vals) : this(allowDuplicates)
+  {
+    foreach (var v in vals) Add(v);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Properties
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// <summary>Total number of elements (counting duplicates in multiset mode).</summary>
+  public int Count { get { return GetSize(_root); } }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Public API
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// <summary>
+  /// Add x to the set.
+  /// Returns true if the element count increased
+  /// (always true in multiset mode; false in set mode when x already exists).
+  /// </summary>
+  public bool Add(T x)
+  {
+    int before = Count;
+    _root = Insert(_root, x);
+    return Count > before;
   }
 
   /// <summary>
-  /// key を追加する。新規追加なら true、既存なら false を返す。O(log N)
+  /// Remove one occurrence of x.
+  /// Returns true if an element was actually removed.
   /// </summary>
-  public bool Add(T key)
+  public bool Remove(T x)
   {
-    bool added = false;
-    _root = Insert(_root, key, ref added);
-    return added;
+    int before = Count;
+    _root = Delete(_root, x);
+    return Count < before;
   }
+
+  /// <summary>Returns true if x is present in the set.</summary>
+  public bool Contains(T x) { return FindNode(_root, x) != null; }
+
+  // ── Bounds ───────────────────────────────────────────────────────────────
 
   /// <summary>
-  /// key を削除する。削除成功なら true、存在しなければ false を返す。O(log N)
+  /// Returns the smallest element &gt;= x (lower bound / ceiling).
+  /// Throws InvalidOperationException if no such element exists.
   /// </summary>
-  public bool Remove(T key)
+  public T LowerBound(T x)
   {
-    bool removed = false;
-    _root = Delete(_root, key, ref removed);
-    return removed;
+    T val;
+    if (TryLowerBound(x, out val!)) return val;
+    throw new InvalidOperationException("No element >= " + x + ".");
   }
 
-  // ---- Min / Max ----------------------------------------------------------
-
-  /// <summary>最小要素を返す。空集合なら InvalidOperationException。</summary>
-  public T Min
+  /// <summary>Try version of LowerBound. Returns false if no element &gt;= x.</summary>
+  public bool TryLowerBound(T x, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T val)
   {
-    get
-    {
-      if (_root == null) throw new InvalidOperationException("Set is empty.");
-      return MinNode(_root).Key;
-    }
-  }
-
-  /// <summary>最大要素を返す。空集合なら InvalidOperationException。</summary>
-  public T Max
-  {
-    get
-    {
-      if (_root == null) throw new InvalidOperationException("Set is empty.");
-      return MaxNode(_root).Key;
-    }
-  }
-
-  /// <summary>空なら false、非空なら最小要素を value に格納して true。</summary>
-  public bool TryGetMin(out T value)
-  {
-    if (_root == null) { value = default!; return false; }
-    value = MinNode(_root).Key;
-    return true;
-  }
-
-  /// <summary>空なら false、非空なら最大要素を value に格納して true。</summary>
-  public bool TryGetMax(out T value)
-  {
-    if (_root == null) { value = default!; return false; }
-    value = MaxNode(_root).Key;
-    return true;
-  }
-
-  // ---- LowerBound / UpperBound --------------------------------------------
-
-  /// <summary>
-  /// key 以上の最小要素を返す。存在しなければ InvalidOperationException。O(log N)
-  /// </summary>
-  public T LowerBound(T key)
-  {
-    if (!TryLowerBound(key, out T value))
-      throw new InvalidOperationException("No element >= key.");
-    return value;
-  }
-
-  /// <summary>key 以上の最小要素を value に格納して true。なければ false。O(log N)</summary>
-  public bool TryLowerBound(T key, out T value)
-  {
-    // 仕様 5.3 の CountLessThan と対称的に、候補を下りながら追跡する
-    Node? best = null;
-    var cur = _root;
-    while (cur != null)
-    {
-      int c = _cmp.Compare(key, cur.Key);
-      if (c <= 0)          // cur.Key >= key → 候補
-      {
-        best = cur;
-        cur = cur.Left;
-      }
-      else                 // cur.Key < key
-      {
-        cur = cur.Right;
-      }
-    }
-    if (best == null) { value = default!; return false; }
-    value = best.Key;
+    Node? n = LowerBoundNode(_root, x);
+    if (n == null) { val = default!; return false; }   // FIX CS8600/CS8603: default!
+    val = n.Key;
     return true;
   }
 
   /// <summary>
-  /// key より大きい最小要素を返す。存在しなければ InvalidOperationException。O(log N)
+  /// Returns the largest element &lt;= x (upper bound / floor).
+  /// Throws InvalidOperationException if no such element exists.
   /// </summary>
-  public T UpperBound(T key)
+  public T UpperBound(T x)
   {
-    if (!TryUpperBound(key, out T value))
-      throw new InvalidOperationException("No element > key.");
-    return value;
+    T val;
+    if (TryUpperBound(x, out val!)) return val;
+    throw new InvalidOperationException("No element <= " + x + ".");
   }
 
-  /// <summary>key より大きい最小要素を value に格納して true。なければ false。O(log N)</summary>
-  public bool TryUpperBound(T key, out T value)
+  /// <summary>Try version of UpperBound. Returns false if no element &lt;= x.</summary>
+  public bool TryUpperBound(T x, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T val)
   {
-    Node? best = null;
-    var cur = _root;
-    while (cur != null)
-    {
-      int c = _cmp.Compare(key, cur.Key);
-      if (c < 0)           // cur.Key > key → 候補
-      {
-        best = cur;
-        cur = cur.Left;
-      }
-      else                 // cur.Key <= key
-      {
-        cur = cur.Right;
-      }
-    }
-    if (best == null) { value = default!; return false; }
-    value = best.Key;
+    Node? n = UpperBoundNode(_root, x);
+    if (n == null) { val = default!; return false; }   // FIX CS8600/CS8603: default!
+    val = n.Key;
     return true;
   }
 
-  // ---- 個数系クエリ -------------------------------------------------------
+  // ── Count queries ─────────────────────────────────────────────────────────
 
-  /// <summary>key より小さい要素の個数を返す。O(log N)</summary>
-  public int CountLessThan(T key)
-  {
-    // 仕様 5.3: key > cur.Key のとき Size(cur.Left)+1 を加算して右へ
-    int count = 0;
-    var cur = _root;
-    while (cur != null)
-    {
-      int c = _cmp.Compare(key, cur.Key);
-      if (c > 0)
-      {
-        count += Size(cur.Left) + 1;
-        cur = cur.Right;
-      }
-      else
-      {
-        cur = cur.Left;
-      }
-    }
-    return count;
-  }
+  /// <summary>Number of elements strictly less than x.</summary>
+  public int CountLessThan(T x) { return CountLess(_root, x); }
 
-  public int CountMoreThan(T key)
-    => CountLessThanOrEqual(this.Max) - CountLessThan(key);
+  /// <summary>Number of elements strictly greater than x.</summary>
+  public int CountMoreThan(T x) { return Count - CountLessOrEqual(_root, x); }
 
-  /// <summary>key 以下の要素の個数を返す。O(log N)</summary>
-  public int CountLessThanOrEqual(T key)
-  {
-    // 仕様 5.4: key >= cur.Key のとき Size(cur.Left)+1 を加算して右へ
-    int count = 0;
-    var cur = _root;
-    while (cur != null)
-    {
-      int c = _cmp.Compare(key, cur.Key);
-      if (c >= 0)
-      {
-        count += Size(cur.Left) + 1;
-        cur = cur.Right;
-      }
-      else
-      {
-        cur = cur.Left;
-      }
-    }
-    return count;
-  }
-
-  // ---- 順序統計 -----------------------------------------------------------
+  // ── Order statistics ──────────────────────────────────────────────────────
 
   /// <summary>
-  /// 昇順で 0-indexed の k 番目要素を返す。
-  /// k が範囲外なら ArgumentOutOfRangeException。O(log N)
+  /// Returns the k-th smallest element (0-indexed, multiplicities counted).
+  /// Throws ArgumentOutOfRangeException if k is out of range.
   /// </summary>
-  public T Kth(int k)
+  public T ElementAt(int k)
   {
     if (k < 0 || k >= Count)
-      throw new ArgumentOutOfRangeException(nameof(k),
-          $"k={k} is out of range [0, {Count - 1}].");
-    return KthNode(_root!, k).Key;
+      throw new ArgumentOutOfRangeException("k",
+          "Index " + k + " is out of range [0, " + (Count - 1) + "].");
+    return KthSmallest(_root, k);
   }
 
-  // ---- 列挙 ---------------------------------------------------------------
+  // ── Min / Max ─────────────────────────────────────────────────────────────
 
-  /// <summary>昇順列挙。O(N)</summary>
-  public IEnumerator<T> GetEnumerator() => InOrder(_root).GetEnumerator();
-  System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => ((IEnumerable<T>)this).GetEnumerator();
+  /// <summary>Returns the smallest element. Throws if the set is empty.</summary>
+  public T PeekMin()
+  {
+    EnsureNotEmpty();
+    return NodeMin(_root!).Key;
+  }
 
-  // =========================================================================
-  // 内部実装
-  // =========================================================================
+  /// <summary>Returns the largest element. Throws if the set is empty.</summary>
+  public T PeekMax()
+  {
+    EnsureNotEmpty();
+    return NodeMax(_root!).Key;
+  }
 
-  // ---- ユーティリティ -----------------------------------------------------
+  /// <summary>Removes and returns the smallest element. Throws if the set is empty.</summary>
+  public T PopMin()
+  {
+    EnsureNotEmpty();
+    T val = NodeMin(_root!).Key;
+    Remove(val);
+    return val;
+  }
 
-  private static int Size(Node? n) => n?.Size ?? 0;
-  private static int Ht(Node? n) => n?.Height ?? 0;
+  /// <summary>Removes and returns the largest element. Throws if the set is empty.</summary>
+  public T PopMax()
+  {
+    EnsureNotEmpty();
+    T val = NodeMax(_root!).Key;
+    Remove(val);
+    return val;
+  }
+
+  // ── Misc ──────────────────────────────────────────────────────────────────
+
+  /// <summary>Removes all elements from the set.</summary>
+  public void Clear() { _root = null; }
+
+  /// <summary>Returns a sorted string representation: {a, b, c, ...}</summary>
+  public override string ToString()
+  {
+    var sb = new StringBuilder("{");
+    bool first = true;
+    foreach (T item in this)
+    {
+      if (!first) sb.Append(", ");
+      sb.Append(item);
+      first = false;
+    }
+    sb.Append('}');
+    return sb.ToString();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // IEnumerable<T>  –  in-order (ascending) traversal
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// <summary>Enumerates elements in ascending order (duplicates repeated in multiset mode).</summary>
+  public IEnumerator<T> GetEnumerator() { return InOrder(_root).GetEnumerator(); }
+
+  System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { return GetEnumerator(); }
+
+  private IEnumerable<T> InOrder(Node? node)
+  {
+    if (node == null) yield break;
+    foreach (T v in InOrder(node.Left)) yield return v;
+    for (int i = 0; i < node.Count; i++) yield return node.Key;
+    foreach (T v in InOrder(node.Right)) yield return v;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // AVL tree internals
+  // ─────────────────────────────────────────────────────────────────────────
+
+  private static int GetHeight(Node? n) { return n == null ? 0 : n.Height; }
+  private static int GetSize(Node? n)   { return n == null ? 0 : n.Size;   }
 
   private static void Pull(Node n)
   {
-    n.Height = 1 + Math.Max(Ht(n.Left), Ht(n.Right));
-    n.Size = 1 + Size(n.Left) + Size(n.Right);
+    n.Height = 1 + Math.Max(GetHeight(n.Left), GetHeight(n.Right));
+    n.Size = GetSize(n.Left) + n.Count + GetSize(n.Right);
   }
 
-  private static int BalanceFactor(Node n) => Ht(n.Left) - Ht(n.Right);
+  private static int Bf(Node n) { return GetHeight(n.Left) - GetHeight(n.Right); }
 
-  // ---- 回転 ---------------------------------------------------------------
-
-  //        n                  l
-  //       / \                / \
-  //      l   C    →       A   n
-  //     / \                   / \
-  //    A   B                 B   C
-  private static Node RotateRight(Node n)
+  private static Node RotL(Node x)
   {
-    var l = n.Left!;
-    n.Left = l.Right;
-    l.Right = n;
-    Pull(n);
-    Pull(l);
-    return l;
+    Node y = x.Right!;   // caller guarantees Right is non-null
+    x.Right = y.Left;
+    y.Left = x;
+    Pull(x);
+    Pull(y);
+    return y;
   }
 
-  //      n                    r
-  //     / \                  / \
-  //    A   r      →        n   C
-  //       / \             / \
-  //      B   C           A   B
-  private static Node RotateLeft(Node n)
+  private static Node RotR(Node y)
   {
-    var r = n.Right!;
-    n.Right = r.Left;
-    r.Left = n;
-    Pull(n);
-    Pull(r);
-    return r;
+    Node x = y.Left!;    // caller guarantees Left is non-null
+    y.Left = x.Right;
+    x.Right = y;
+    Pull(y);
+    Pull(x);
+    return x;
   }
-
-  // ---- AVL バランス修正 ---------------------------------------------------
 
   private static Node Balance(Node n)
   {
     Pull(n);
-    int bf = BalanceFactor(n);
-
-    if (bf > 1)                       // 左過多
+    int bf = Bf(n);
+    if (bf > 1)
     {
-      if (BalanceFactor(n.Left!) < 0)
-        n.Left = RotateLeft(n.Left!);   // LR
-      return RotateRight(n);
+      if (Bf(n.Left!) < 0) n.Left = RotL(n.Left!);
+      return RotR(n);
     }
-    if (bf < -1)                      // 右過多
+    if (bf < -1)
     {
-      if (BalanceFactor(n.Right!) > 0)
-        n.Right = RotateRight(n.Right!); // RL
-      return RotateLeft(n);
+      if (Bf(n.Right!) > 0) n.Right = RotR(n.Right!);
+      return RotL(n);
     }
     return n;
   }
 
-  // ---- 挿入 ---------------------------------------------------------------
+  // ── Insert ────────────────────────────────────────────────────────────────
 
-  private Node Insert(Node? n, T key, ref bool added)
+  private Node Insert(Node? n, T key)
   {
-    if (n == null) { added = true; return new Node(key); }
-
-    int c = _cmp.Compare(key, n.Key);
-    if (c < 0) n.Left = Insert(n.Left, key, ref added);
-    else if (c > 0) n.Right = Insert(n.Right, key, ref added);
-    // c == 0 → 重複、何もしない
-
+    if (n == null) return new Node(key);
+    int cmp = key.CompareTo(n.Key);
+    if (cmp == 0)
+    {
+      if (_allowDuplicates) { n.Count++; n.Size++; }
+      return n;
+    }
+    if (cmp < 0) n.Left  = Insert(n.Left,  key);
+    else         n.Right = Insert(n.Right, key);
     return Balance(n);
   }
 
-  // ---- 削除 ---------------------------------------------------------------
+  // ── Delete ────────────────────────────────────────────────────────────────
 
-  private Node? Delete(Node? n, T key, ref bool removed)
+  private Node? Delete(Node? n, T key)
   {
-    if (n == null) return null;   // 見つからなかった
-
-    int c = _cmp.Compare(key, n.Key);
-    if (c < 0)
+    if (n == null) return null;
+    int cmp = key.CompareTo(n.Key);
+    if (cmp < 0)
     {
-      n.Left = Delete(n.Left, key, ref removed);
+      n.Left = Delete(n.Left, key);
     }
-    else if (c > 0)
+    else if (cmp > 0)
     {
-      n.Right = Delete(n.Right, key, ref removed);
+      n.Right = Delete(n.Right, key);
     }
     else
     {
-      // 削除対象ノード
-      removed = true;
-
-      if (n.Left == null) return n.Right;
+      // Found
+      if (n.Count > 1) { n.Count--; n.Size--; return n; }
+      if (n.Left  == null) return n.Right;
       if (n.Right == null) return n.Left;
-
-      // 子が 2 個: 右部分木の最小ノード（後継）で置換
-      // ※ Count を二重に減らさないため、後継を取り出す専用ルートを使う
-      Node succ = MinNode(n.Right);
-      n.Key = succ.Key;
-      // 後継を右部分木から削除（必ず存在するので removed を上書きしない）
-      bool dummy = false;
-      n.Right = Delete(n.Right, succ.Key, ref dummy);
+      // Replace with in-order successor
+      Node succ = NodeMin(n.Right);
+      n.Key   = succ.Key;
+      n.Count = succ.Count;
+      n.Right = DeleteMin(n.Right);   // FIX CS8603: DeleteMin returns Node?
     }
-
     return Balance(n);
   }
 
-  // ---- 最小・最大ノード ---------------------------------------------------
+  // Delete the minimum node (all its copies) from the subtree.
+  private static Node? DeleteMin(Node n)   // FIX CS8603: return Node?
+  {
+    if (n.Left == null) return n.Right;
+    n.Left = DeleteMin(n.Left);
+    return Balance(n);
+  }
 
-  private static Node MinNode(Node n)
+  // ── Lookup helpers ────────────────────────────────────────────────────────
+
+  private static Node? FindNode(Node? n, T key)
+  {
+    while (n != null)
+    {
+      int cmp = key.CompareTo(n.Key);
+      if (cmp == 0) return n;
+      n = cmp < 0 ? n.Left : n.Right;
+    }
+    return null;
+  }
+
+  // Smallest key >= x
+  private static Node? LowerBoundNode(Node? n, T x)   // FIX CS8603: return Node?
+  {
+    Node? result = null;
+    while (n != null)
+    {
+      int cmp = x.CompareTo(n.Key);
+      if (cmp <= 0) { result = n; n = n.Left; }
+      else n = n.Right;
+    }
+    return result;
+  }
+
+  // Largest key <= x
+  private static Node? UpperBoundNode(Node? n, T x)   // FIX CS8603: return Node?
+  {
+    Node? result = null;
+    while (n != null)
+    {
+      int cmp = x.CompareTo(n.Key);
+      if (cmp >= 0) { result = n; n = n.Right; }
+      else n = n.Left;
+    }
+    return result;
+  }
+
+  // Number of elements strictly less than x
+  private static int CountLess(Node? n, T x)
+  {
+    int cnt = 0;
+    while (n != null)
+    {
+      int cmp = x.CompareTo(n.Key);
+      if (cmp <= 0) n = n.Left;
+      else { cnt += GetSize(n.Left) + n.Count; n = n.Right; }
+    }
+    return cnt;
+  }
+
+  // Number of elements <= x
+  private static int CountLessOrEqual(Node? n, T x)
+  {
+    int cnt = 0;
+    while (n != null)
+    {
+      int cmp = x.CompareTo(n.Key);
+      if (cmp < 0)
+      {
+        n = n.Left;
+      }
+      else if (cmp == 0)
+      {
+        cnt += GetSize(n.Left) + n.Count;
+        break;
+      }
+      else
+      {
+        cnt += GetSize(n.Left) + n.Count;
+        n = n.Right;
+      }
+    }
+    return cnt;
+  }
+
+  // 0-indexed k-th smallest (multiplicities counted)
+  private static T KthSmallest(Node? n, int k)   // FIX CS8603: param Node?
+  {
+    while (n != null)
+    {
+      int leftSize = GetSize(n.Left);
+      if (k < leftSize)
+      {
+        n = n.Left;
+      }
+      else if (k < leftSize + n.Count)
+      {
+        return n.Key;
+      }
+      else
+      {
+        k -= leftSize + n.Count;
+        n = n.Right;
+      }
+    }
+    // Unreachable when called from ElementAt (which bounds-checks k), but
+    // required to satisfy the compiler's definite-assignment analysis.
+    throw new InvalidOperationException("k out of range.");
+  }
+
+  private static Node NodeMin(Node n)
   {
     while (n.Left != null) n = n.Left;
     return n;
   }
 
-  private static Node MaxNode(Node n)
+  private static Node NodeMax(Node n)
   {
     while (n.Right != null) n = n.Right;
     return n;
   }
 
-  // ---- k 番目ノード -------------------------------------------------------
-
-  private static Node KthNode(Node n, int k)
+  private void EnsureNotEmpty()
   {
-    while (true)
-    {
-      int leftSize = Size(n.Left);
-      if (k < leftSize) { n = n.Left!; }
-      else if (k == leftSize) { return n; }
-      else { k -= leftSize + 1; n = n.Right!; }
-    }
-  }
-
-  // ---- 昇順イテレータ（スタック非再帰）-----------------------------------
-
-  private static IEnumerable<T> InOrder(Node? root)
-  {
-    // 再帰深度 O(log N) で十分だが、yield return と再帰は相性が悪いため
-    // 明示的スタックで非再帰化する
-    var stack = new Stack<Node>();
-    var cur = root;
-    while (cur != null || stack.Count > 0)
-    {
-      while (cur != null) { stack.Push(cur); cur = cur.Left; }
-      cur = stack.Pop();
-      yield return cur.Key;
-      cur = cur.Right;
-    }
+    if (_root == null)
+      throw new InvalidOperationException("The set is empty.");
   }
 }
+
 
 public struct Interval : IComparable<Interval>
 {
@@ -2973,7 +2997,7 @@ class FastScanner
 
   public (long, long, long, long) Long4()
     => (Long(), Long(), Long(), Long());
-  
+
   public (int, long) IntLong()
     => (Int(), Long());
 
