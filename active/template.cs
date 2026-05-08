@@ -69,7 +69,8 @@ var sb = new StringBuilder();
 
 
 Console.Write(sb.ToString());
-return 0;
+Console.Out.Flush();
+Environment.Exit(0);
 
 
 static class Nms
@@ -1937,8 +1938,7 @@ readonly struct ModInt : IEquatable<ModInt>
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public static ModInt operator *(ModInt a, ModInt b)
   {
-    long res = (long)((Int128)a._value * b._value % Mod);
-    return new ModInt(res, true);
+    return new ModInt(a._value * b._value % Mod, true);
   }
 
   public ModInt Pow(long n)
