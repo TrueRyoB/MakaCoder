@@ -1,4 +1,4 @@
-using System.Text; using System.Numerics; using System.Runtime.CompilerServices; using System; using System.Collections.Generic; using System.Linq; using System.IO; using System.Security.Cryptography;
+using System.Text;using System.Numerics;using System.Runtime.CompilerServices;using System;using System.Collections.Generic;using System.Linq;using System.IO;using System.Security.Cryptography;using System.Buffers;
 #nullable enable
 
 
@@ -1216,7 +1216,6 @@ class AvlSet<T> : IEnumerable<T> where T : IComparable<T>
   }
 }
 
-
 public struct Interval : IComparable<Interval>
 {
   public long L, R;
@@ -1225,10 +1224,6 @@ public struct Interval : IComparable<Interval>
   public long Length => R - L;
 }
 
-/// <summary>
-/// 座標圧縮なしで区間を管理する Set (Chtholly Tree like structure)
-/// すべての区間は [L, R) の半開区間で管理され、互いに素（disjoint）です。
-/// </summary>
 public sealed class IntervalSet
 {
   private readonly SortedSet<Interval> set = new SortedSet<Interval>();
@@ -1967,7 +1962,7 @@ readonly struct ModInt : IEquatable<ModInt>
   public override bool Equals(object? obj) => obj is ModInt other && Equals(other);
   public override int GetHashCode() => _value.GetHashCode();
   public override string ToString() => _value.ToString();
-  
+
   public static ModInt operator ++(ModInt a) => a + 1;
   public static ModInt operator --(ModInt a) => a - 1;
   public static ModInt operator +(ModInt a, long b) => a + new ModInt(b);
@@ -1983,7 +1978,7 @@ readonly struct ModInt : IEquatable<ModInt>
   public static bool operator !=(ModInt a, ModInt b) => a._value != b._value;
 }
 
-class Count
+sealed class Count
 {
   private readonly int n;
   private readonly long mod;
@@ -2793,6 +2788,151 @@ static class Graph
     topdown(0, -1);
 
     return res;
+  }
+}
+
+public static class RandomGenerator
+{
+  // =========================
+  // public API
+  // =========================
+
+  public static T val<T>(T min, T max)
+      where T : unmanaged, IBinaryInteger<T>
+  {
+    if (max < min)
+      throw new ArgumentException("max < min");
+
+    // [min, max]
+    T range = checked(max - min + T.One);
+
+    if (range <= T.Zero)
+      throw new ArgumentException("range overflow");
+
+    return min + Uniform(range);
+  }
+
+  public static T[] vals<T>(int n, T min, T max)
+      where T : unmanaged, IBinaryInteger<T>
+  {
+    if (n < 0)
+      throw new ArgumentOutOfRangeException(nameof(n));
+
+    if (max < min)
+      throw new ArgumentException("max < min");
+
+    T range = checked(max - min + T.One);
+
+    if (range <= T.Zero)
+      throw new ArgumentException("range overflow");
+
+    ulong uRange = ToUInt64(range);
+
+    if ((ulong)n > uRange)
+      throw new ArgumentException("n > distinct count");
+
+    // 小範囲なら部分Fisher-Yates
+    if (uRange <= 1_000_000)
+      return SmallDistinct(n, min, range);
+
+    // 大範囲ならHashSetリジェクト
+    return LargeDistinct(n, min, range);
+  }
+
+  // =========================
+  // uniform random
+  // =========================
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  private static T Uniform<T>(T range)
+      where T : unmanaged, IBinaryInteger<T>
+  {
+    ulong bound = ToUInt64(range);
+
+    ulong limit = ulong.MaxValue - ulong.MaxValue % bound;
+
+    while (true)
+    {
+      ulong x = RandomUInt64();
+
+      if (x < limit)
+        return T.CreateChecked(x % bound);
+    }
+  }
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  private static ulong RandomUInt64()
+  {
+    Span<byte> buf = stackalloc byte[8];
+    RandomNumberGenerator.Fill(buf);
+    return BitConverter.ToUInt64(buf);
+  }
+
+  // =========================
+  // distinct generation
+  // =========================
+
+  private static T[] SmallDistinct<T>(int n, T min, T range)
+      where T : unmanaged, IBinaryInteger<T>
+  {
+    int m = checked((int)ToUInt64(range));
+
+    int[] arr = ArrayPool<int>.Shared.Rent(m);
+
+    try
+    {
+      for (int i = 0; i < m; ++i)
+        arr[i] = i;
+
+      // partial Fisher-Yates
+      for (int i = 0; i < n; ++i)
+      {
+        int j = i + int.CreateChecked(Uniform(T.CreateChecked(m - i)));
+
+        (arr[i], arr[j]) = (arr[j], arr[i]);
+      }
+
+      T[] res = new T[n];
+
+      for (int i = 0; i < n; ++i)
+        res[i] = min + T.CreateChecked(arr[i]);
+
+      return res;
+    }
+    finally
+    {
+      ArrayPool<int>.Shared.Return(arr);
+    }
+  }
+
+  private static T[] LargeDistinct<T>(int n, T min, T range)
+      where T : unmanaged, IBinaryInteger<T>
+  {
+    var set = new HashSet<T>();
+    var res = new T[n];
+
+    int idx = 0;
+
+    while (idx < n)
+    {
+      T v = min + Uniform(range);
+
+      if (set.Add(v))
+        res[idx++] = v;
+    }
+
+    return res;
+  }
+
+  // =========================
+  // helper
+  // =========================
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  private static ulong ToUInt64<T>(T x)
+      where T : unmanaged, IBinaryInteger<T>
+  {
+    return ulong.CreateChecked(x);
   }
 }
 
