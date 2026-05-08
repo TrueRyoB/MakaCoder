@@ -309,6 +309,8 @@ static class Nms
     => new Dinic(n);
   public static LazySegment<TNode, TLazy> LazySegmentTree<TNode, TLazy>(int n, Func<TNode, TNode, TNode> op, TNode e, Func<TLazy, TNode, int, TNode> mapping, Func<TLazy, TLazy, TLazy> composition, TLazy id)
     => new LazySegment<TNode, TLazy>(n, op, e, mapping, composition, id);
+  public static LazySegment<TNode, TLazy> LazySegmentTree<TNode, TLazy>(IReadOnlyList<TNode> nodes, Func<TNode, TNode, TNode> op, TNode e, Func<TLazy, TNode, int, TNode> mapping, Func<TLazy, TLazy, TLazy> composition, TLazy id)
+    => new LazySegment<TNode, TLazy>(nodes, op, e, mapping, composition, id);
   public static Segment<T> SegmentTree<T>(T identity, Func<T, T, T> op, int size, T val)
     => new Segment<T>(identity, op, size, val);
   public static Segment<T> SegmentTree<T>(T identity, Func<T, T, T> op, T[] data)
@@ -992,7 +994,7 @@ class AvlSet<T> : IEnumerable<T> where T : IComparable<T>
   // ─────────────────────────────────────────────────────────────────────────
 
   private static int GetHeight(Node? n) { return n == null ? 0 : n.Height; }
-  private static int GetSize(Node? n)   { return n == null ? 0 : n.Size;   }
+  private static int GetSize(Node? n) { return n == null ? 0 : n.Size; }
 
   private static void Pull(Node n)
   {
@@ -1050,8 +1052,8 @@ class AvlSet<T> : IEnumerable<T> where T : IComparable<T>
       if (_allowDuplicates) { n.Count++; n.Size++; }
       return n;
     }
-    if (cmp < 0) n.Left  = Insert(n.Left,  key);
-    else         n.Right = Insert(n.Right, key);
+    if (cmp < 0) n.Left = Insert(n.Left, key);
+    else n.Right = Insert(n.Right, key);
     return Balance(n);
   }
 
@@ -1073,11 +1075,11 @@ class AvlSet<T> : IEnumerable<T> where T : IComparable<T>
     {
       // Found
       if (n.Count > 1) { n.Count--; n.Size--; return n; }
-      if (n.Left  == null) return n.Right;
+      if (n.Left == null) return n.Right;
       if (n.Right == null) return n.Left;
       // Replace with in-order successor
       Node succ = NodeMin(n.Right);
-      n.Key   = succ.Key;
+      n.Key = succ.Key;
       n.Count = succ.Count;
       n.Right = DeleteMin(n.Right);   // FIX CS8603: DeleteMin returns Node?
     }
@@ -1890,129 +1892,95 @@ public sealed class MatrixMod
 readonly struct ModInt : IEquatable<ModInt>
 {
   private readonly long _value;
+  public static long Mod { get; private set; }
 
-  private static long _mod;
-  private static bool _modIsSet;
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  private ModInt(long value, bool _) => _value = value;
 
   public long Value => _value;
-  public static long Mod => _mod;
 
   public static void SetMod(long mod)
   {
-    if (mod <= 1) throw new ArgumentOutOfRangeException(nameof(mod), "mod must be > 1.");
-    _mod = mod;
-    _modIsSet = true;
+    if (mod <= 1) throw new ArgumentOutOfRangeException(nameof(mod));
+    Mod = mod;
   }
 
-  private static void EnsureModSet()
-  {
-    if (!_modIsSet)
-      throw new InvalidOperationException("Mod is not set. Call ModInt.SetMod(mod) first.");
-  }
-
-  private static long Normalize(long x)
-  {
-    EnsureModSet();
-    x %= _mod;
-    if (x < 0) x += _mod;
-    return x;
-  }
-
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public ModInt(long value)
   {
-    _value = Normalize(value);
+    long v = value % Mod;
+    if (v < 0) v += Mod;
+    _value = v;
   }
 
-  public static implicit operator ModInt(int x) => new ModInt(x);
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public static implicit operator ModInt(long x) => new ModInt(x);
-
-  public static explicit operator int(ModInt x) => checked((int)x._value);
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public static explicit operator long(ModInt x) => x._value;
 
-  private static long MulMod(long a, long b)
-  {
-    return (long)(((BigInteger)a * b) % _mod);
-  }
-
-  public ModInt Pow(long exp)
-  {
-    if (exp < 0) throw new ArgumentOutOfRangeException(nameof(exp));
-    EnsureModSet();
-
-    long baseVal = _value;
-    long result = 1 % _mod;
-
-    while (exp > 0)
-    {
-      if ((exp & 1) != 0) result = MulMod(result, baseVal);
-      baseVal = MulMod(baseVal, baseVal);
-      exp >>= 1;
-    }
-
-    return new ModInt(result);
-  }
-
-  public ModInt Inverse()
-  {
-    if (_value == 0) throw new DivideByZeroException();
-    return Pow(_mod - 2);
-  }
-
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public static ModInt operator +(ModInt a, ModInt b)
   {
-    EnsureModSet();
-    long v = a._value + b._value;
-    if (v >= _mod) v -= _mod;
-    return new ModInt(v);
+    long res = a._value + b._value;
+    if (res >= Mod) res -= Mod;
+    return new ModInt(res, true);
   }
 
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public static ModInt operator -(ModInt a, ModInt b)
   {
-    EnsureModSet();
-    long v = a._value - b._value;
-    if (v < 0) v += _mod;
-    return new ModInt(v);
+    long res = a._value - b._value;
+    if (res < 0) res += Mod;
+    return new ModInt(res, true);
   }
 
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public static ModInt operator *(ModInt a, ModInt b)
   {
-    EnsureModSet();
-    return new ModInt(MulMod(a._value, b._value));
+    long res = (long)((Int128)a._value * b._value % Mod);
+    return new ModInt(res, true);
   }
 
-  public static ModInt operator /(ModInt a, ModInt b)
+  public ModInt Pow(long n)
   {
-    return a * b.Inverse();
+    if (n < 0) return Inverse().Pow(-n);
+    ModInt res = 1, a = this;
+    while (n > 0)
+    {
+      if ((n & 1) == 1) res *= a;
+      a *= a;
+      n >>= 1;
+    }
+    return res;
   }
 
-  public static ModInt operator -(ModInt a)
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  public ModInt Inverse()
   {
-    EnsureModSet();
-    return a._value == 0 ? a : new ModInt(_mod - a._value);
+    return Pow(Mod - 2);
   }
 
-  public static ModInt operator ++(ModInt a) => a + 1;
-  public static ModInt operator --(ModInt a) => a - 1;
-
-  public static ModInt operator +(ModInt a, long b) => a + new ModInt(b);
-  public static ModInt operator +(long a, ModInt b) => new ModInt(a) + b;
-
-  public static ModInt operator -(ModInt a, long b) => a - new ModInt(b);
-  public static ModInt operator -(long a, ModInt b) => new ModInt(a) - b;
-
-  public static ModInt operator *(ModInt a, long b) => a * new ModInt(b);
-  public static ModInt operator *(long a, ModInt b) => new ModInt(a) * b;
-
-  public static ModInt operator /(ModInt a, long b) => a / new ModInt(b);
-  public static ModInt operator /(long a, ModInt b) => new ModInt(a) / b;
-
-  public static bool operator ==(ModInt a, ModInt b) => a._value == b._value;
-  public static bool operator !=(ModInt a, ModInt b) => a._value != b._value;
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  public static ModInt operator /(ModInt a, ModInt b) => a * b.Inverse();
 
   public bool Equals(ModInt other) => _value == other._value;
   public override bool Equals(object? obj) => obj is ModInt other && Equals(other);
   public override int GetHashCode() => _value.GetHashCode();
   public override string ToString() => _value.ToString();
+  
+  public static ModInt operator ++(ModInt a) => a + 1;
+  public static ModInt operator --(ModInt a) => a - 1;
+  public static ModInt operator +(ModInt a, long b) => a + new ModInt(b);
+  public static ModInt operator +(long a, ModInt b) => new ModInt(a) + b;
+  public static ModInt operator -(ModInt a, long b) => a - new ModInt(b);
+  public static ModInt operator -(long a, ModInt b) => new ModInt(a) - b;
+  public static ModInt operator *(ModInt a, long b) => a * new ModInt(b);
+  public static ModInt operator *(long a, ModInt b) => new ModInt(a) * b;
+  public static ModInt operator /(ModInt a, long b) => a / new ModInt(b);
+
+  public static ModInt operator /(long a, ModInt b) => new ModInt(a) / b;
+  public static bool operator ==(ModInt a, ModInt b) => a._value == b._value;
+  public static bool operator !=(ModInt a, ModInt b) => a._value != b._value;
 }
 
 class Count
