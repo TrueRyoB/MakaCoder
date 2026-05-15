@@ -6,6 +6,8 @@ var fs = new FastScanner();
 var sb = new StringBuilder();
 
 
+//時間を測る
+
 
 
 
@@ -308,10 +310,10 @@ static class Nms
     => new MatrixMod(rows, cols, mod);
   public static Dinic MaxFlowSolver<T>(int n)
     => new Dinic(n);
-  public static LazySegment<TNode, TLazy, TOp> LazySegmentTree<TNode, TLazy, TOp>(int n) where TOp : struct, ILazyOp<TNode, TLazy>
-    => new LazySegment<TNode, TLazy, TOp>(n);
-  public static LazySegment<TNode, TLazy, TOp> LazySegmentTree<TNode, TLazy, TOp>(IReadOnlyList<TNode> nodes) where TOp : struct, ILazyOp<TNode, TLazy>
-    => new LazySegment<TNode, TLazy, TOp>(nodes);
+  public static LazySegment<TNode, TLazy> LazySegmentTree<TNode, TLazy>(int n, Func<TNode, TNode, TNode> op, TNode e, Func<TLazy, TNode, int, TNode> mapping, Func<TLazy, TLazy, TLazy> composition, TLazy id)
+    => new LazySegment<TNode, TLazy>(n, op, e, mapping, composition, id);
+  public static LazySegment<TNode, TLazy> LazySegmentTree<TNode, TLazy>(IReadOnlyList<TNode> nodes, Func<TNode, TNode, TNode> op, TNode e, Func<TLazy, TNode, int, TNode> mapping, Func<TLazy, TLazy, TLazy> composition, TLazy id)
+    => new LazySegment<TNode, TLazy>(nodes, op, e, mapping, composition, id);
   public static Segment<T> SegmentTree<T>(T identity, Func<T, T, T> op, int size, T val)
     => new Segment<T>(identity, op, size, val);
   public static Segment<T> SegmentTree<T>(T identity, Func<T, T, T> op, T[] data)
@@ -1452,13 +1454,13 @@ sealed class Deque<T>(int capacity = 16)
     return val;
   }
 
-  public T PeekFront()
+  public T Front()
   {
     if (_count == 0) throw new InvalidOperationException();
     return _buf[_head];
   }
 
-  public T PeekBack()
+  public T Back()
   {
     if (_count == 0) throw new InvalidOperationException();
     return _buf[ToIndex(_count - 1)];
@@ -2208,21 +2210,7 @@ class Dinic
   }
 }
 
-/// <summary>
-/// Better be implemented as a struct for a static dispatch
-/// </summary>
-public interface ILazyOp<TNode, TLazy>
-{
-  TNode Op(TNode l, TNode r);
-  TNode E { get; }
-  TNode Mapping(TLazy f, TNode x, int len);
-  TLazy Composition(TLazy f, TLazy g);
-  TLazy Id { get; }
-  bool IsId(TLazy f);
-}
-
-public sealed class LazySegment<TNode, TLazy, TOp>
-    where TOp : struct, ILazyOp<TNode, TLazy>
+class LazySegment<TNode, TLazy>
 {
   private readonly int _n;
   private readonly int _size;
@@ -2230,124 +2218,85 @@ public sealed class LazySegment<TNode, TLazy, TOp>
 
   private readonly TNode[] _d;
   private readonly TLazy[] _lz;
-  private static readonly TOp _op = default;
+
+  private readonly Func<TNode, TNode, TNode> _op;
+  private readonly TNode _e;
+
+  // mapping(f, x, len) = 区間長 len のノード x に遅延 f を適用した結果
+  private readonly Func<TLazy, TNode, int, TNode> _mapping;
+
+  // composition(f, g) = f ∘ g
+  private readonly Func<TLazy, TLazy, TLazy> _composition;
+  private readonly TLazy _id;
+
   public int Length => _n;
-  public LazySegment(int n)
+
+  public LazySegment(
+      int n,
+      Func<TNode, TNode, TNode> op,
+      TNode e,
+      Func<TLazy, TNode, int, TNode> mapping,
+      Func<TLazy, TLazy, TLazy> composition,
+      TLazy id)
   {
     if (n < 0) throw new ArgumentOutOfRangeException(nameof(n));
     _n = n;
+    _op = op ?? throw new ArgumentNullException(nameof(op));
+    _e = e;
+    _mapping = mapping ?? throw new ArgumentNullException(nameof(mapping));
+    _composition = composition ?? throw new ArgumentNullException(nameof(composition));
+    _id = id;
 
     _log = 0;
     _size = 1;
-    while (_size < _n) { _size <<= 1; _log++; }
+    while (_size < _n)
+    {
+      _size <<= 1;
+      _log++;
+    }
 
     _d = new TNode[2 * _size];
     _lz = new TLazy[_size];
 
-    var e = _op.E;
-    var id = _op.Id;
-    for (int i = 0; i < 2 * _size; i++) _d[i] = e;
-    for (int i = 0; i < _size; i++) _lz[i] = id;
+    for (int i = 0; i < 2 * _size; i++) _d[i] = _e;
+    for (int i = 0; i < _size; i++) _lz[i] = _id;
   }
-  public LazySegment(IReadOnlyList<TNode> v) : this(v.Count)
+
+  public LazySegment(
+      IReadOnlyList<TNode> v,
+      Func<TNode, TNode, TNode> op,
+      TNode e,
+      Func<TLazy, TNode, int, TNode> mapping,
+      Func<TLazy, TLazy, TLazy> composition,
+      TLazy id)
+      : this(v.Count, op, e, mapping, composition, id)
   {
     for (int i = 0; i < _n; i++) _d[_size + i] = v[i];
     for (int i = _size - 1; i >= 1; i--) Update(i);
   }
-  public void Set(int p, TNode x)
-  {
-    if ((uint)p >= (uint)_n) throw new ArgumentOutOfRangeException(nameof(p));
-    p += _size;
-    PushPath(p);
-    _d[p] = x;
-    for (int i = 1; i <= _log; i++) Update(p >> i);
-  }
-  public TNode Get(int p)
-  {
-    if ((uint)p >= (uint)_n) throw new ArgumentOutOfRangeException(nameof(p));
-    p += _size;
-    PushPath(p);
-    return _d[p];
-  }
-  public TNode Prod(int l, int r)
-  {
-    if (l < 0 || r < l || r > _n) throw new ArgumentOutOfRangeException();
-    if (l == r) return _op.E;
 
-    int l0 = l + _size, r0 = r + _size;
-    PushToEdge(l0);
-    PushToEdge(r0 - 1);
-
-    TNode sml = _op.E, smr = _op.E;
-    int lp = l0, rp = r0;
-    while (lp < rp)
-    {
-      if ((lp & 1) == 1) sml = _op.Op(sml, _d[lp++]);
-      if ((rp & 1) == 1) smr = _op.Op(_d[--rp], smr);
-      lp >>= 1; rp >>= 1;
-    }
-    return _op.Op(sml, smr);
-  }
-  public TNode AllProd() => _d[1];
-  public void Apply(int p, TLazy f)
-  {
-    if ((uint)p >= (uint)_n) throw new ArgumentOutOfRangeException(nameof(p));
-    p += _size;
-    PushPath(p);
-    _d[p] = _op.Mapping(f, _d[p], 1);
-    for (int i = 1; i <= _log; i++) Update(p >> i);
-  }
-  public void Apply(int l, int r, TLazy f)
-  {
-    if (l < 0 || r < l || r > _n) throw new ArgumentOutOfRangeException();
-    if (l == r) return;
-
-    int l0 = l + _size, r0 = r + _size;
-
-    for (int i = _log; i >= 1; i--)
-    {
-      if (((l0 >> i) << i) != l0) Push(l0 >> i, 1 << i);
-      if (((r0 >> i) << i) != r0) Push((r0 - 1) >> i, 1 << i);
-    }
-
-    int l1 = l0, r1 = r0, leftLen = 1, rightLen = 1;
-    while (l1 < r1)
-    {
-      if ((l1 & 1) == 1) AllApply(l1++, f, leftLen);
-      if ((r1 & 1) == 1) AllApply(--r1, f, rightLen);
-      l1 >>= 1; r1 >>= 1;
-      leftLen <<= 1; rightLen <<= 1;
-    }
-
-    for (int i = 1; i <= _log; i++)
-    {
-      if (((l0 >> i) << i) != l0) Update(l0 >> i);
-      if (((r0 >> i) << i) != r0) Update((r0 - 1) >> i);
-    }
-  }
-
-  [MethodImpl(MethodImplOptions.AggressiveInlining)]
   private void Update(int k)
-      => _d[k] = _op.Op(_d[k << 1], _d[k << 1 | 1]);
+  {
+    _d[k] = _op(_d[k << 1], _d[k << 1 | 1]);
+  }
 
-  [MethodImpl(MethodImplOptions.AggressiveInlining)]
   private void AllApply(int k, TLazy f, int len)
   {
-    _d[k] = _op.Mapping(f, _d[k], len);
+    _d[k] = _mapping(f, _d[k], len);
     if (k < _size)
-      _lz[k] = _op.Composition(f, _lz[k]);
+    {
+      _lz[k] = _composition(f, _lz[k]);
+    }
   }
 
-  [MethodImpl(MethodImplOptions.AggressiveInlining)]
   private void Push(int k, int len)
   {
-    if(_op.IsId(_lz[k])) return;
+    if (EqualityComparer<TLazy>.Default.Equals(_lz[k], _id)) return;
 
-    int half=len>>1;
-
+    int half = len >> 1;
     AllApply(k << 1, _lz[k], half);
     AllApply(k << 1 | 1, _lz[k], half);
-    _lz[k] = _op.Id;
+    _lz[k] = _id;
   }
 
   private void PushPath(int k)
@@ -2355,17 +2304,143 @@ public sealed class LazySegment<TNode, TLazy, TOp>
     for (int i = _log; i >= 1; i--)
     {
       int node = k >> i;
-      Push(node, 1 << i);
+      int len = 1 << i;
+      Push(node, len);
     }
+  }
+
+  public void Set(int p, TNode x)
+  {
+    if ((uint)p >= (uint)_n) throw new ArgumentOutOfRangeException(nameof(p));
+
+    p += _size;
+    PushPath(p);
+
+    _d[p] = x;
+    for (int i = 1; i <= _log; i++)
+    {
+      int k = p >> i;
+      Update(k);
+    }
+  }
+
+  public TNode Get(int p)
+  {
+    if ((uint)p >= (uint)_n) throw new ArgumentOutOfRangeException(nameof(p));
+
+    p += _size;
+    PushPath(p);
+    return _d[p];
+  }
+
+  public TNode Prod(int l, int r)
+  {
+    if (l < 0 || r < l || r > _n) throw new ArgumentOutOfRangeException();
+
+    if (l == r) return _e;
+
+    l += _size;
+    r += _size;
+
+    PushToEdge(l);
+    PushToEdge(r - 1);
+
+    TNode sml = _e;
+    TNode smr = _e;
+
+    while (l < r)
+    {
+      if ((l & 1) == 1) sml = _op(sml, _d[l++]);
+      if ((r & 1) == 1) smr = _op(_d[--r], smr);
+      l >>= 1;
+      r >>= 1;
+    }
+
+    return _op(sml, smr);
   }
 
   private void PushToEdge(int p)
   {
     for (int i = _log; i >= 1; i--)
-      Push(p >> i, 1 << i);
+    {
+      int k = p >> i;
+      int len = 1 << i;
+      Push(k, len);
+    }
+  }
+
+  public TNode AllProd() => _d[1];
+
+  public void Apply(int p, TLazy f)
+  {
+    if ((uint)p >= (uint)_n) throw new ArgumentOutOfRangeException(nameof(p));
+
+    p += _size;
+    PushPath(p);
+
+    _d[p] = _mapping(f, _d[p], 1);
+
+    for (int i = 1; i <= _log; i++)
+    {
+      int k = p >> i;
+      Update(k);
+    }
+  }
+
+  public void Apply(int l, int r, TLazy f)
+  {
+    if (l < 0 || r < l || r > _n) throw new ArgumentOutOfRangeException();
+
+    if (l == r) return;
+
+    int l0 = l + _size;
+    int r0 = r + _size;
+
+    // 端点付近の遅延を落とす
+    for (int i = _log; i >= 1; i--)
+    {
+      if (((l0 >> i) << i) != l0)
+      {
+        int k = l0 >> i;
+        Push(k, 1 << i);
+      }
+      if (((r0 >> i) << i) != r0)
+      {
+        int k = (r0 - 1) >> i;
+        Push(k, 1 << i);
+      }
+    }
+
+    int l1 = l0;
+    int r1 = r0;
+    int leftLen = 1;
+    int rightLen = 1;
+
+    while (l1 < r1)
+    {
+      if ((l1 & 1) == 1) AllApply(l1++, f, leftLen);
+      if ((r1 & 1) == 1) AllApply(--r1, f, rightLen);
+      l1 >>= 1;
+      r1 >>= 1;
+      leftLen <<= 1;
+      rightLen <<= 1;
+    }
+
+    for (int i = 1; i <= _log; i++)
+    {
+      if (((l0 >> i) << i) != l0)
+      {
+        int k = l0 >> i;
+        Update(k);
+      }
+      if (((r0 >> i) << i) != r0)
+      {
+        int k = (r0 - 1) >> i;
+        Update(k);
+      }
+    }
   }
 }
-
 
 class Segment<T>
 {
