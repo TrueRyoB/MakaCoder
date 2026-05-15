@@ -1,4 +1,4 @@
-using System.Text;using System.Numerics;using System.Runtime.CompilerServices;using System;using System.Collections.Generic;using System.Linq;using System.IO;using System.Security.Cryptography;using System.Buffers;
+using System.Text;using System.Numerics;using System.Runtime.CompilerServices;using System;using System.Collections.Generic;using System.Linq;using System.IO;using System.Security.Cryptography;using System.Buffers;using System.Diagnostics;
 #nullable enable
 
 
@@ -12,12 +12,23 @@ var sb = new StringBuilder();
 
 
 
+/*
+AHC典型
 
+ビームサーチ: 
+上位の貪欲結果を幾つか保持する (幅 | 深さ)
 
+zobrish hash: 
+同型の離散集合が状態を圧迫するのを防ぐ (多様性)
 
+山登り | 焼きなまし法: 
+解を少しずつ変更するのを繰り返して改善
+局所解防止のため、解が悪化する場合にも遷移 その頻度をゲーム中に下げ続ける (多様性)
 
+モンテカルロ法: 
+各有限操作の有効度を乱択上のシミュレーションで評価
 
-
+*/
 
 
 
@@ -340,6 +351,8 @@ static class Nms
     => new RollingHashDeque<T>(init);
   public static FenwickTree<T> Fenwick<T>(int n) where T : IBinaryInteger<T>
     => new FenwickTree<T>(n);
+  public static XorShiftRandom Random(int seed) 
+    => new XorShiftRandom(seed);
 }
 
 sealed class FenwickTree<T> where T : IBinaryInteger<T>
@@ -2718,149 +2731,38 @@ static class Graph
   }
 }
 
-public static class RandomGenerator
+sealed class TimeKeeper(double timeThreshold)
 {
-  // =========================
-  // public API
-  // =========================
-
-  public static T val<T>(T min, T max)
-      where T : unmanaged, IBinaryInteger<T>
-  {
-    if (max < min)
-      throw new ArgumentException("max < min");
-
-    // [min, max]
-    T range = checked(max - min + T.One);
-
-    if (range <= T.Zero)
-      throw new ArgumentException("range overflow");
-
-    return min + Uniform(range);
-  }
-
-  public static T[] vals<T>(int n, T min, T max)
-      where T : unmanaged, IBinaryInteger<T>
-  {
-    if (n < 0)
-      throw new ArgumentOutOfRangeException(nameof(n));
-
-    if (max < min)
-      throw new ArgumentException("max < min");
-
-    T range = checked(max - min + T.One);
-
-    if (range <= T.Zero)
-      throw new ArgumentException("range overflow");
-
-    ulong uRange = ToUInt64(range);
-
-    if ((ulong)n > uRange)
-      throw new ArgumentException("n > distinct count");
-
-    // 小範囲なら部分Fisher-Yates
-    if (uRange <= 1_000_000)
-      return SmallDistinct(n, min, range);
-
-    // 大範囲ならHashSetリジェクト
-    return LargeDistinct(n, min, range);
-  }
-
-  // =========================
-  // uniform random
-  // =========================
+  private readonly Stopwatch stopwatch=Stopwatch.StartNew();
+  private readonly double timeThreshold=timeThreshold;
+  private double currentTime=0;
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  private static T Uniform<T>(T range)
-      where T : unmanaged, IBinaryInteger<T>
-  {
-    ulong bound = ToUInt64(range);
-
-    ulong limit = ulong.MaxValue - ulong.MaxValue % bound;
-
-    while (true)
-    {
-      ulong x = RandomUInt64();
-
-      if (x < limit)
-        return T.CreateChecked(x % bound);
-    }
-  }
+  public void Set()
+    => currentTime = stopwatch.Elapsed.TotalMilliseconds;
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  private static ulong RandomUInt64()
-  {
-    Span<byte> buf = stackalloc byte[8];
-    RandomNumberGenerator.Fill(buf);
-    return BitConverter.ToUInt64(buf);
-  }
-
-  // =========================
-  // distinct generation
-  // =========================
-
-  private static T[] SmallDistinct<T>(int n, T min, T range)
-      where T : unmanaged, IBinaryInteger<T>
-  {
-    int m = checked((int)ToUInt64(range));
-
-    int[] arr = ArrayPool<int>.Shared.Rent(m);
-
-    try
-    {
-      for (int i = 0; i < m; ++i)
-        arr[i] = i;
-
-      // partial Fisher-Yates
-      for (int i = 0; i < n; ++i)
-      {
-        int j = i + int.CreateChecked(Uniform(T.CreateChecked(m - i)));
-
-        (arr[i], arr[j]) = (arr[j], arr[i]);
-      }
-
-      T[] res = new T[n];
-
-      for (int i = 0; i < n; ++i)
-        res[i] = min + T.CreateChecked(arr[i]);
-
-      return res;
-    }
-    finally
-    {
-      ArrayPool<int>.Shared.Return(arr);
-    }
-  }
-
-  private static T[] LargeDistinct<T>(int n, T min, T range)
-      where T : unmanaged, IBinaryInteger<T>
-  {
-    var set = new HashSet<T>();
-    var res = new T[n];
-
-    int idx = 0;
-
-    while (idx < n)
-    {
-      T v = min + Uniform(range);
-
-      if (set.Add(v))
-        res[idx++] = v;
-    }
-
-    return res;
-  }
-
-  // =========================
-  // helper
-  // =========================
-
+  public double Get()
+    => currentTime;
+  
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  private static ulong ToUInt64<T>(T x)
-      where T : unmanaged, IBinaryInteger<T>
-  {
-    return ulong.CreateChecked(x);
-  }
+  public bool IsTimeOver()
+    => currentTime >= timeThreshold;
+}
+
+sealed class XorShiftRandom(int seed=0)
+{
+  private readonly Random rng=new Random(seed);
+
+  public int NextInt(int m)
+    => rng.Next(m);
+  
+  public double NextDouble()
+    => rng.NextDouble();
+  
+  public double NextLog()
+    => Math.Log(rng.NextDouble());
+
 }
 
 static class Sugaku
