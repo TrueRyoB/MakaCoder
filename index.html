@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>speakdown demo</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      height: 100%;
+    }
+
+    body {
+      font-family: sans-serif;
+      padding: 24px;
+      background: #f5f5f5;
+      color: #222;
+      height: 100%;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      height: 100%;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-start;
+    }
+
+    .header {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      justify-content: flex-start;
+      height: 5rem;
+    }
+
+    .main {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-start;
+      width: 80%;
+      gap: 0.3rem;
+      flex-grow: 1;
+      height: 100%;
+      box-sizing: border-box;
+    }
+
+    .input-header {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+
+    .input-header .label {
+      font-weight: bold;
+    }
+
+    .action-container {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0 0.5rem;
+    }
+
+    .action-container span {
+      cursor: pointer;
+    }
+
+    #input-container {
+      width: 100%;
+      height: auto;
+      min-height: 5rem;
+      max-height: 30rem;
+      resize: none;
+      font-size: 12px;
+      padding: 10px;
+      overflow: hidden;
+    }
+
+    .footer {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .footer span {
+      font-size: 0.5rem;
+      color:#222;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>speakdown</h1>
+    </div>
+
+    <div class="main">
+      <div class="input-header">
+        <span class="label">thoughts</span>
+
+        <div class="action-container">
+          <span class="material-icons" id="mic-btn">mic</span>
+          <span class="material-icons" id="copy-btn">content_copy</span>
+        </div>
+      </div>
+      <textarea id="input-container" placeholder="organize your thoughts here..."></textarea>
+    </div>
+
+    <div class="footer">
+      <span>© 2026 Deep Nap Engine</span>
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    // UX
+
+    const textarea = document.querySelector("#input-container");
+    
+    function autoResize() {
+      textarea.style.height=textarea.scrollHeight + "px";
+    }
+
+    textarea.addEventListener("input", autoResize);
+
+
+    // systems
+
+    const copybtn = document.querySelector("#copy-btn");
+
+    async function copyToClipboard() {
+      try {
+        await navigator.clipboard.writeText(textarea.value);
+      } catch (err) {
+        console.error("failed", err);
+      }
+    }
+
+    copybtn.addEventListener("click", copyToClipboard);
+
+
+    const micbtn = document.querySelector("#mic-btn");
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    let recognition=null;
+    let listening=false;
+
+    function insertAtCursor(element, text) {
+      const start=element.selectionStart;
+      const end=element.selectionEnd;
+
+      const before=element.value.substring(0, start);
+      const after=element.value.substring(end);
+
+      element.value = before + text + after;
+
+      const newcursor=start+start.length;
+      element.selectionStart=element.selectionEnd=newcursor;
+
+      element.focus();
+    }
+
+    async function listen() {
+      //1. make sure that webspeech API is supported / listening is not active
+      if(!SpeechRecognition) {
+        alert("web speech API is not supported");
+        return;
+      }
+      if(listening) {
+        recognition.stop();
+        return;
+      }
+
+      recognition=new SpeechRecognition();
+
+      recognition.lang="ja-JP";
+      recognition.continuous=true;
+      recognition.interimResults = true;
+
+      listening=true;
+
+      //2. change the button state
+      micbtn.textContent="stop_circle";
+
+      //3. put the retrieved content
+
+      recognition.onresult = (event) => {
+        let transcript="";
+        for(let i=event.resultIndex; i<event.results.length; ++i) transcript += event.results[i][0].transcript;
+        insertAtCursor(textarea, transcript);
+      }
+      
+
+      //4. auto stop
+
+      recognition.onend = () => {
+        listening=false;
+        micbtn.textContent="mic";
+      }
+
+      recognition.start();
+    }
+
+    micbtn.addEventListener("click", listen);
+    
+
+  </script>
+</body>
+</html>
