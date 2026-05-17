@@ -1985,11 +1985,125 @@ sealed class Count
     for (int i = n - 2; i >= 0; --i) inv[i] = inv[i + 1] * (i + 1) % mod;
   }
 
+  public long P(int a, int b)
+    => (a<0 || b<0 || b>a) ? 0 : fact[a] * inv[a-b] % mod;
+
   public long C(int a, int b)
    => (a < 0 || b < 0 || b > a) ? 0 : fact[a] * inv[a - b] % mod * inv[b] % mod;
 
   public long H(int a, int b)
     => C(a + b - 1, a - 1);
+  
+  /// <summary>
+  /// choose k from n
+  /// </summary>
+  /// <param name="n"></param>
+  /// <param name="k"></param>
+  /// <returns></returns>
+  public long Binom(int n, int k)
+    => C(n, k);
+  
+  /// <summary>
+  /// choose k from n and sort
+  /// </summary>
+  /// <param name="n"></param>
+  /// <param name="k"></param>
+  /// <returns></returns>
+  public long Arrange(int n, int k)
+    => P(n, k);
+  
+  /// <summary>
+  /// have k share n
+  /// </summary>
+  /// <param name="n"></param>
+  /// <param name="k"></param>
+  /// <returns></returns>
+  public long Share(int n, int k)
+    => C(n+k-1, n);
+  
+  /// <summary>
+  /// split n into nonempty k
+  /// </summary>
+  /// <param name="n"></param>
+  /// <param name="k"></param>
+  /// <returns></returns>
+  public long Part(int n, int k)
+    => C(n-1, k-1);
+  
+  /// <summary>
+  /// split n members into nonempty k teams
+  /// </summary>
+  /// <param name="n"></param>
+  /// <param name="k"></param>
+  /// <returns></returns>
+  public long TeamUp(int n, int k)
+  {
+    if(n<0 || k<0 || n<k) return 0;
+
+    long sum=0;
+    for(int i=0; i<=k; ++i)
+    {
+      long t=(k-i)%2==0 ? 1 : -1;
+      t*=C(k, i)*Sugaku.ModPow(i, n, mod)%mod;
+      sum+=t;
+    }
+    return sum;
+  }
+
+  /// <summary>
+  /// split n members into nonempty k groups
+  /// </summary>
+  /// <param name="n"></param>
+  /// <param name="k"></param>
+  /// <returns></returns>
+  public long GroupUp(int n, int k)
+    => TeamUp(n, k) * inv[k] % mod;
+  
+
+  /// <summary>
+  /// classify n members using k unlabeled groups
+  /// </summary>
+  /// <param name="n"></param>
+  /// <param name="k"></param>
+  /// <returns></returns>
+  public long Classify(int n, int k)
+  {
+    if(n<0 || k<0) return 0;
+
+    long p=0;
+    for(int j=0; j<=k-i; ++j)
+    {
+      if(j%2==0) p=(p+inv[j])%mod;
+      else p=(p+mod-inv[j])%mod;
+    }
+    long q=0;
+    for(int i=0; i<=k; ++i)
+    {
+      q=(q+Sugaku.ModPow(i, n, mod)*inv[i])%mod;
+    }
+    return p*q%mod;
+  }
+
+  /// <summary>
+  /// represent n using k unordered elements
+  /// </summary>
+  /// <param name="n"></param>
+  /// <param name="k"></param>
+  public long Represent(int n, int k)
+  {
+    var dp=Nms.Matrix<long>(n+1, k+1, 0);
+
+    for(int k=0; k<=n; ++k)
+    {
+      dp[0][k]=1;
+    }
+    for(int i=1; i<=n; ++i) for(int j=1; j<=k; ++k)
+    {
+      dp[i][j]=(dp[i][j-1] + (i-j>=0 ? dp[i-j][j] : 0))%mod;
+    }
+
+    return dp[n][k];
+  }
 }
 
 class Dinic
