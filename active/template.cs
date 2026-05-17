@@ -2045,7 +2045,7 @@ sealed class Count
     {
       long t=(k-i)%2==0 ? 1 : -1;
       t*=C(k, i)*Sugaku.ModPow(i, n, mod)%mod;
-      sum+=t;
+      sum=(sum+mod+t)%mod;
     }
     return sum;
   }
@@ -2070,18 +2070,20 @@ sealed class Count
   {
     if(n<0 || k<0) return 0;
 
-    long p=0;
-    for(int j=0; j<=k-i; ++j)
-    {
-      if(j%2==0) p=(p+inv[j])%mod;
-      else p=(p+mod-inv[j])%mod;
-    }
-    long q=0;
+    var p=Nms.Array<long>(k+1, 0);
+
     for(int i=0; i<=k; ++i)
     {
-      q=(q+Sugaku.ModPow(i, n, mod)*inv[i])%mod;
+      p[i] = i%2==1 ? (mod-inv[i]) % mod : inv[i];
+      if(i>0) p[i]=(p[i]+p[i-1])%mod;
     }
-    return p*q%mod;
+
+    long sum=0;
+    for(int i=0; i<=k; ++i)
+    {
+      sum=(sum + inv[i]*Sugaku.ModPow(i, n, mod)%mod*p[k-i])%mod;
+    }
+    return sum;
   }
 
   /// <summary>
@@ -2093,11 +2095,11 @@ sealed class Count
   {
     var dp=Nms.Matrix<long>(n+1, k+1, 0);
 
-    for(int k=0; k<=n; ++k)
+    for(int j=0; j<=k; ++j)
     {
-      dp[0][k]=1;
+      dp[0][j]=1;
     }
-    for(int i=1; i<=n; ++i) for(int j=1; j<=k; ++k)
+    for(int i=1; i<=n; ++i) for(int j=1; j<=k; ++j)
     {
       dp[i][j]=(dp[i][j-1] + (i-j>=0 ? dp[i-j][j] : 0))%mod;
     }
