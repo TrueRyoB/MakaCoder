@@ -8,11 +8,16 @@ var sb = new StringBuilder();
 
 
 
+/*
+問題設定を正しく解釈する
 
+何がボトルネックか
+なぜ有効打か
+どう順序を作るか
 
-
-
-
+計算量解析などで、定量的に判断する
+判断を妨げる何かがあるなら、その素養の獲得に急ぐ
+*/
 
 
 
@@ -323,8 +328,154 @@ static class Nms
     => new RollingHashDeque<T>(init);
   public static FenwickTree<T> Fenwick<T>(int n) where T : IBinaryInteger<T>
     => new FenwickTree<T>(n);
-  public static XorShiftRandom Random(int seed) 
+  public static XorShiftRandom Random(int seed)
     => new XorShiftRandom(seed);
+}
+
+sealed class LinearPalette
+{
+  public const long NINF = -Sugaku.LINF;
+  public const long INF = Sugaku.LINF;
+
+  private readonly SortedSet<Interval> ranges = new();
+  private long totalArea = 0; 
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  private bool IsEmptySet(long l, long r)
+      => l == INF || r == NINF || l >= r;
+
+  private List<Interval> GetOverlapped(long l, long r)
+  {
+    List<Interval> result = new();
+    
+    var leftView = ranges.GetViewBetween(new Interval(NINF, NINF), new Interval(l, INF));
+    Interval? start = leftView.Count > 0 ? leftView.Max : null;
+
+    Interval searchStart = start ?? new Interval(l, NINF);
+    if (start != null && start.Value.R <= l)
+    {
+      searchStart = new Interval(l, NINF);
+    }
+
+    foreach (var item in ranges.GetViewBetween(searchStart, new Interval(INF, INF)))
+    {
+      if (item.L >= r) break; 
+      if (item.R > l)
+      {
+        result.Add(item);
+      }
+    }
+
+    return result;
+  }
+
+  public LinearPalette Clear()
+  {
+    ranges.Clear();
+    totalArea = 0;
+    return this;
+  }
+
+  public LinearPalette Dye(long l, long r)
+  {
+    if (IsEmptySet(l, r)) return this;
+
+    var overlapped = GetOverlapped(l, r);
+
+    long newL = l;
+    long newR = r;
+
+    if (overlapped.Count > 0)
+    {
+      newL = Math.Min(newL, overlapped[0].L);
+      newR = Math.Max(newR, overlapped[overlapped.Count - 1].R);
+
+      foreach (var item in overlapped)
+      {
+        ranges.Remove(item);
+        totalArea -= (item.R - item.L);
+      }
+    }
+
+    ranges.Add(new Interval(newL, newR));
+    totalArea += (newR - newL);
+
+    return this;
+  }
+
+  public LinearPalette Undye(long l, long r)
+  {
+    if (IsEmptySet(l, r)) return this;
+
+    var overlapped = GetOverlapped(l, r);
+
+    foreach (var item in overlapped)
+    {
+      ranges.Remove(item);
+      totalArea -= (item.R - item.L);
+
+      if (item.L < l)
+      {
+        ranges.Add(new Interval(item.L, l));
+        totalArea += (l - item.L);
+      }
+      if (r < item.R)
+      {
+        ranges.Add(new Interval(r, item.R));
+        totalArea += (item.R - r);
+      }
+    }
+
+    return this;
+  }
+
+  public long Count(long l, long r)
+  {
+    if (IsEmptySet(l, r)) return 0;
+    return GetOverlapped(l, r).Count;
+  }
+
+  public long Count()
+  {
+    return ranges.Count;
+  }
+
+  public long Area(long l, long r)
+  {
+    if (IsEmptySet(l, r)) return 0;
+
+    var overlapped = GetOverlapped(l, r);
+    long area = 0;
+
+    foreach (var item in overlapped)
+    {
+      long intersectL = Math.Max(l, item.L);
+      long intersectR = Math.Min(r, item.R);
+      area += (intersectR - intersectL);
+    }
+
+    return area;
+  }
+
+  public long Area()
+  {
+    return totalArea;
+  }
+
+  private readonly struct Interval : IComparable<Interval>
+  {
+    public long L { get; }
+    public long R { get; }
+
+    public Interval(long l, long r) => (L, R) = (l, r);
+
+    public int CompareTo(Interval other)
+    {
+      int cmp = L.CompareTo(other.L);
+      if (cmp != 0) return cmp;
+      return R.CompareTo(other.R);
+    }
+  }
 }
 
 sealed class FenwickTree<T> where T : IBinaryInteger<T>
@@ -1986,14 +2137,14 @@ sealed class Count
   }
 
   public long P(int a, int b)
-    => (a<0 || b<0 || b>a) ? 0 : fact[a] * inv[a-b] % mod;
+    => (a < 0 || b < 0 || b > a) ? 0 : fact[a] * inv[a - b] % mod;
 
   public long C(int a, int b)
    => (a < 0 || b < 0 || b > a) ? 0 : fact[a] * inv[a - b] % mod * inv[b] % mod;
 
   public long H(int a, int b)
     => C(a + b - 1, a - 1);
-  
+
   /// <summary>
   /// choose k from n
   /// </summary>
@@ -2002,7 +2153,7 @@ sealed class Count
   /// <returns></returns>
   public long Binom(int n, int k)
     => C(n, k);
-  
+
   /// <summary>
   /// choose k from n and sort
   /// </summary>
@@ -2011,7 +2162,7 @@ sealed class Count
   /// <returns></returns>
   public long Arrange(int n, int k)
     => P(n, k);
-  
+
   /// <summary>
   /// have k share n
   /// </summary>
@@ -2019,8 +2170,8 @@ sealed class Count
   /// <param name="k"></param>
   /// <returns></returns>
   public long Share(int n, int k)
-    => C(n+k-1, n);
-  
+    => C(n + k - 1, n);
+
   /// <summary>
   /// split n into nonempty k
   /// </summary>
@@ -2028,8 +2179,8 @@ sealed class Count
   /// <param name="k"></param>
   /// <returns></returns>
   public long Part(int n, int k)
-    => C(n-1, k-1);
-  
+    => C(n - 1, k - 1);
+
   /// <summary>
   /// split n members into nonempty k teams
   /// </summary>
@@ -2038,14 +2189,14 @@ sealed class Count
   /// <returns></returns>
   public long TeamUp(int n, int k)
   {
-    if(n<0 || k<0 || n<k) return 0;
+    if (n < 0 || k < 0 || n < k) return 0;
 
-    long sum=0;
-    for(int i=0; i<=k; ++i)
+    long sum = 0;
+    for (int i = 0; i <= k; ++i)
     {
-      long t=(k-i)%2==0 ? 1 : -1;
-      t*=C(k, i)*Sugaku.ModPow(i, n, mod)%mod;
-      sum=(sum+mod+t)%mod;
+      long t = (k - i) % 2 == 0 ? 1 : -1;
+      t *= C(k, i) * Sugaku.ModPow(i, n, mod) % mod;
+      sum = (sum + mod + t) % mod;
     }
     return sum;
   }
@@ -2058,7 +2209,7 @@ sealed class Count
   /// <returns></returns>
   public long GroupUp(int n, int k)
     => TeamUp(n, k) * inv[k] % mod;
-  
+
 
   /// <summary>
   /// classify n members using k unlabeled groups
@@ -2068,20 +2219,20 @@ sealed class Count
   /// <returns></returns>
   public long Classify(int n, int k)
   {
-    if(n<0 || k<0) return 0;
+    if (n < 0 || k < 0) return 0;
 
-    var p=Nms.Array<long>(k+1, 0);
+    var p = Nms.Array<long>(k + 1, 0);
 
-    for(int i=0; i<=k; ++i)
+    for (int i = 0; i <= k; ++i)
     {
-      p[i] = i%2==1 ? (mod-inv[i]) % mod : inv[i];
-      if(i>0) p[i]=(p[i]+p[i-1])%mod;
+      p[i] = i % 2 == 1 ? (mod - inv[i]) % mod : inv[i];
+      if (i > 0) p[i] = (p[i] + p[i - 1]) % mod;
     }
 
-    long sum=0;
-    for(int i=0; i<=k; ++i)
+    long sum = 0;
+    for (int i = 0; i <= k; ++i)
     {
-      sum=(sum + inv[i]*Sugaku.ModPow(i, n, mod)%mod*p[k-i])%mod;
+      sum = (sum + inv[i] * Sugaku.ModPow(i, n, mod) % mod * p[k - i]) % mod;
     }
     return sum;
   }
@@ -2093,15 +2244,15 @@ sealed class Count
   /// <param name="k"></param>
   public long Represent(int n, int k)
   {
-    var dp=Nms.Matrix<long>(n+1, k+1, 0);
+    var dp = Nms.Matrix<long>(n + 1, k + 1, 0);
 
-    for(int j=0; j<=k; ++j)
+    for (int j = 0; j <= k; ++j)
     {
-      dp[0][j]=1;
+      dp[0][j] = 1;
     }
-    for(int i=1; i<=n; ++i) for(int j=1; j<=k; ++j)
+    for (int i = 1; i <= n; ++i) for (int j = 1; j <= k; ++j)
     {
-      dp[i][j]=(dp[i][j-1] + (i-j>=0 ? dp[i-j][j] : 0))%mod;
+      dp[i][j] = (dp[i][j - 1] + (i - j >= 0 ? dp[i - j][j] : 0)) % mod;
     }
 
     return dp[n][k];
@@ -2374,9 +2525,9 @@ public sealed class LazySegment<TNode, TLazy, TOp>
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
   private void Push(int k, int len)
   {
-    if(_op.IsId(_lz[k])) return;
+    if (_op.IsId(_lz[k])) return;
 
-    int half=len>>1;
+    int half = len >> 1;
 
     AllApply(k << 1, _lz[k], half);
     AllApply(k << 1 | 1, _lz[k], half);
@@ -2753,9 +2904,9 @@ static class Graph
 
 sealed class TimeKeeper(double timeThreshold)
 {
-  private readonly Stopwatch stopwatch=Stopwatch.StartNew();
-  private readonly double timeThreshold=timeThreshold;
-  private double currentTime=0;
+  private readonly Stopwatch stopwatch = Stopwatch.StartNew();
+  private readonly double timeThreshold = timeThreshold;
+  private double currentTime = 0;
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public void Set()
@@ -2764,22 +2915,22 @@ sealed class TimeKeeper(double timeThreshold)
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public double Get()
     => currentTime;
-  
+
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public bool IsTimeOver()
     => currentTime >= timeThreshold;
 }
 
-sealed class XorShiftRandom(int seed=0)
+sealed class XorShiftRandom(int seed = 0)
 {
-  private readonly Random rng=new Random(seed);
+  private readonly Random rng = new Random(seed);
 
   public int NextInt(int m)
     => rng.Next(m);
-  
+
   public double NextDouble()
     => rng.NextDouble();
-  
+
   public double NextLog()
     => Math.Log(rng.NextDouble());
 
