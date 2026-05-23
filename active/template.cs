@@ -241,6 +241,21 @@ static class Nms
     return res;
   }
 
+  public static long InversionCount<T>(T[] a) where T : IComparable<T>
+  {
+    int N=a.Length;
+    var v=Nms.InOrder<T>(a);
+    var fw=Nms.Fenwick<int>(N+1);
+
+    long sum=0;
+    for(int i=0; i<N; ++i)
+    {
+      sum+=i-fw.Sum(v[i]);
+      fw.Add(v[i], 1);
+    }
+    return sum;
+  }
+
   public static T[] SubArray<T>(ReadOnlySpan<T> a, ReadOnlySpan<int> index)
   {
     foreach (var e in index) if (e < 0 || e >= a.Length) throw new Exception("Out of bounds.");
