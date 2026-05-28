@@ -319,6 +319,8 @@ static class Nms
     => new Segment<T>(identity, op, size, val);
   public static Segment<T> SegmentTree<T>(T identity, Func<T, T, T> op, T[] data)
     => new Segment<T>(identity, op, data);
+  public static Segment2D<T> SegmentTree2D<T>(T identity, Func<T, T, T> op, int height, int width)
+    => new Segment2D<T>(identity, op, height, width);
   public static UnionFind UnionFind(int n)
     => new UnionFind(n);
   public static AvlSet<T> Set<T>() where T : IComparable<T>
@@ -345,6 +347,10 @@ static class Nms
     => new FenwickTree<T>(n);
   public static XorShiftRandom Random(int seed)
     => new XorShiftRandom(seed);
+  public static LCA LCA(List<int>[] G)
+    => new LCA(G);
+  public static Segment2D SegmentTree2D<T>(T identity, Func<T, T, T> op, int height, int width)
+    => new Segment2D(identity, op, height, width);
 }
 
 sealed class LCA
@@ -2696,6 +2702,84 @@ class Segment<T>
 
     set
       => Set(k, value);
+  }
+}
+
+class Segment2D<T>
+{
+  private readonly T[] seg;
+  private readonly Func<T, T, T> op;
+  private readonly T ide;
+  public readonly int H, W;
+
+  private int Id(int h, int w) => h * 2 * W + w;
+
+  public Segment2D(T identity, Func<T, T, T> op, int height, int width)
+  {
+    this.op = op;
+    ide = identity;
+    H = W = 1;
+    while (H < height) H <<= 1;
+    while (W < width) W <<= 1;
+    seg = new T[4 * H * W];
+    Array.Fill(seg, identity);
+  }
+
+  // Call only before Build
+  public void Set(int h, int w, T x) => seg[Id(h + H, w + W)] = x;
+
+  public void Build()
+  {
+    for (int w = W; w < 2 * W; w++)
+      for (int h = H - 1; h > 0; h--)
+        seg[Id(h, w)] = op(seg[Id(2 * h, w)], seg[Id(2 * h + 1, w)]);
+    for (int h = 0; h < 2 * H; h++)
+      for (int w = W - 1; w > 0; w--)
+        seg[Id(h, w)] = op(seg[Id(h, 2 * w)], seg[Id(h, 2 * w + 1)]);
+  }
+
+  public T Get(int h, int w) => seg[Id(h + H, w + W)];
+
+  public void Update(int h, int w, T x)
+  {
+    h += H; w += W;
+    seg[Id(h, w)] = x;
+    for (int i = h >> 1; i > 0; i >>= 1)
+      seg[Id(i, w)] = op(seg[Id(2 * i, w)], seg[Id(2 * i + 1, w)]);
+    for (; h > 0; h >>= 1)
+      for (int j = w >> 1; j > 0; j >>= 1)
+        seg[Id(h, j)] = op(seg[Id(h, 2 * j)], seg[Id(h, 2 * j + 1)]);
+  }
+
+  private T InnerQuery(int h, int w1, int w2)
+  {
+    T res = ide;
+    for (; w1 < w2; w1 >>= 1, w2 >>= 1)
+    {
+      if ((w1 & 1) != 0) { res = op(res, seg[Id(h, w1)]); w1++; }
+      if ((w2 & 1) != 0) { w2--; res = op(res, seg[Id(h, w2)]); }
+    }
+    return res;
+  }
+
+  // half-open [(h1,w1), (h2,w2))
+  public T Query(int h1, int w1, int h2, int w2)
+  {
+    if (h1 >= h2 || w1 >= w2) return ide;
+    T res = ide;
+    h1 += H; h2 += H; w1 += W; w2 += W;
+    for (; h1 < h2; h1 >>= 1, h2 >>= 1)
+    {
+      if ((h1 & 1) != 0) { res = op(res, InnerQuery(h1, w1, w2)); h1++; }
+      if ((h2 & 1) != 0) { h2--; res = op(res, InnerQuery(h2, w1, w2)); }
+    }
+    return res;
+  }
+
+  public T this[int h, int w]
+  {
+    get => Get(h, w);
+    set => Update(h, w, value);
   }
 }
 
