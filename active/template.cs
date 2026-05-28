@@ -349,8 +349,6 @@ static class Nms
     => new XorShiftRandom(seed);
   public static LCA LCA(List<int>[] G)
     => new LCA(G);
-  public static Segment2D SegmentTree2D<T>(T identity, Func<T, T, T> op, int height, int width)
-    => new Segment2D(identity, op, height, width);
 }
 
 sealed class LCA
