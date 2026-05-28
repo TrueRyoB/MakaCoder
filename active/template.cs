@@ -250,7 +250,7 @@ static class Nms
     long sum=0;
     for(int i=0; i<N; ++i)
     {
-      sum+=i-fw.Sum(v[i]);
+      sum+=i-fw.Sum(v[i]+1);
       fw.Add(v[i], 1);
     }
     return sum;
@@ -345,6 +345,70 @@ static class Nms
     => new FenwickTree<T>(n);
   public static XorShiftRandom Random(int seed)
     => new XorShiftRandom(seed);
+}
+
+sealed class LCA
+{
+  private readonly List<int>[] G;
+
+  private readonly int[] dist;
+  private readonly int[][] parent;
+  
+  public LCA(List<int>[] G)
+  {
+    this.G=G;
+
+    int N=G.Length;
+
+    int K=1;
+    while((1<<K)<N) ++K;
+
+    parent=Nms.Matrix(K, N, -1);
+    dist=Nms.Array(N, 0);
+
+    void dfs(int u, int p, int d)
+    {
+      parent[0][u]=p;
+      dist[u]=d;
+      foreach(var v in G[u]) if(p!=v) dfs(v, u, d+1);
+    }
+    dfs(0, -1, 0);
+
+    for(int i=0; i+1<K; ++i)
+    {
+      for(int u=0; u<N; ++u)
+      {
+        if(parent[i][u]<0) parent[i+1][u]=-1;
+        else parent[i+1][u]=parent[i][parent[i][u]];
+      }
+    }
+  }
+
+  public int Dist(int u, int v)
+    => dist[u]+dist[v]-2*dist[Query(u, v)];
+
+  public int Query(int u, int v)
+  {
+    if(dist[u]<dist[v]) (u, v)=(v, u);
+    int K=parent.Length;
+
+    for(int i=0; i<K; ++i)
+    {
+      if((((dist[u]-dist[v])>>i) & 1)==1) u=parent[i][u];
+    }
+
+    if(u==v) return u;
+
+    for(int i=K-1; i>=0; --i)
+    {
+      if(parent[i][u]!=parent[i][v])
+      {
+        u=parent[i][u];
+        v=parent[i][v];
+      }
+    }
+    return parent[0][u];
+  }
 }
 
 sealed class LinearPalette
@@ -523,11 +587,11 @@ sealed class FenwickTree<T> where T : IBinaryInteger<T>
       data[i] += diff;
   }
 
-  // [0, r]
+  // [0, r)
   public T Sum(int r)
   {
     T res = T.Zero;
-    for (int i = r + 1; i > 0; i -= i & -i)
+    for (int i = r; i > 0; i -= i & -i)
       res += data[i];
     return res;
   }
@@ -535,7 +599,7 @@ sealed class FenwickTree<T> where T : IBinaryInteger<T>
   // [l, r)
   public T Sum(int l, int r)
   {
-    return Sum(r + 1) - Sum(l);
+    return Sum(r) - Sum(l);
   }
 
   public T this[int k]
@@ -2601,19 +2665,19 @@ class Segment<T>
     for (int i = n - 1; i >= 1; --i) v[i] = op(v[2 * i], v[2 * i + 1]);
   }
 
-  public T Query(int a, int b)
+  public T Query(int l, int r)
   {
-    if (a > b) (a, b) = (b, a);
+    if (l >= r) return ide;
 
-    T rec(int a, int b, int k, int l, int r)
+    T rec(int a, int b, int k, int lo, int hi)
     {
-      if (r <= a || b <= l) return ide;
-      else if (a <= l && r <= b) return v[k];
-      int m = l + (r - l) / 2;
-      return op(rec(a, b, k * 2, l, m), rec(a, b, k * 2 + 1, m, r));
+      if (hi <= a || b <= lo) return ide;
+      else if (a <= lo && hi <= b) return v[k];
+      int m = lo + (hi - lo) / 2;
+      return op(rec(a, b, k * 2, lo, m), rec(a, b, k * 2 + 1, m, hi));
     }
 
-    return rec(a, b + 1, 1, 0, n);
+    return rec(l, r, 1, 0, n);
   }
 
   public void Set(int i, T val)
