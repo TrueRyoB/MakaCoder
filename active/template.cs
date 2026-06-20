@@ -347,6 +347,8 @@ static class Nms
     => new FenwickTree<T>(n);
   public static XorShiftRandom Random(int seed)
     => new XorShiftRandom(seed);
+  public static TimedIterator TimedIterator(double limitSeconds = 2.0)
+    => new TimedIterator(limitSeconds);
   public static LCA LCA(List<int>[] G)
     => new LCA(G);
 }
@@ -3095,6 +3097,50 @@ sealed class XorShiftRandom(int seed = 0)
   public double NextLog()
     => Math.Log(rng.NextDouble());
 
+}
+
+sealed class TimedIterator(double limitSeconds = 2.0)
+{
+  private readonly Stopwatch _sw = Stopwatch.StartNew();
+  private readonly double _limit = limitSeconds;
+  private readonly List<double> _sorted = new();
+  private double _iterStart = -1;
+
+  public bool Next()
+  {
+    double now = _sw.Elapsed.TotalSeconds;
+
+    if (_iterStart >= 0)
+    {
+      double d = now - _iterStart;
+      _sorted.Insert(UpperBound(d), d);
+    }
+
+    double estimate = _sorted.Count == 0 ? 0.0 : Median();
+
+    if (now + estimate > _limit) return false;
+
+    _iterStart = now;
+    return true;
+  }
+
+  private double Median()
+  {
+    int n = _sorted.Count;
+    return (n & 1) == 1 ? _sorted[n / 2] : (_sorted[n / 2 - 1] + _sorted[n / 2]) * 0.5;
+  }
+
+  private int UpperBound(double val)
+  {
+    int l = 0, r = _sorted.Count;
+    while (l < r)
+    {
+      int m = l + (r - l) / 2;
+      if (_sorted[m] <= val) l = m + 1;
+      else r = m;
+    }
+    return l;
+  }
 }
 
 static class Sugaku
