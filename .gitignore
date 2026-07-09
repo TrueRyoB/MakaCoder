@@ -18,6 +18,10 @@ gen.cpp
 AHC
 f.md
 main.cs
+gen.cs
+brute.cs
+gen.py
+brute.py
 .globalconfig
 .
 !archive

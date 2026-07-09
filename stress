@@ -1,0 +1,206 @@
+#!/usr/bin/env bash
+# stress -- random / stress testing for main.cs against a brute-force reference.
+#
+#   You provide two files at the repo root (git-ignored):
+#     gen.cs   (or gen.py)    a generator: given a random seed, prints ONE test
+#                             input to stdout, honoring the small-case constraints.
+#     brute.cs (or brute.py)  a reference solution (exhaustive / obviously-correct)
+#                             that reads that input on stdin and prints the answer.
+#   Your real solution stays at main.cs.
+#
+#   stress runs many random cases, compares main.cs against the reference, and
+#   prints the first (or every, with --keep-going) mismatching case: seed, input,
+#   expected, got. Build artifacts live in the git-ignored ./stress dir; per-test
+#   inputs use the system temp dir -- nothing touches your git history.
+#
+# Usage:
+#   stress                 # 300 cases, stop at first mismatch
+#   stress 5000            # 5000 cases
+#   stress -k              # keep going, list every mismatch
+#   stress 5000 -k         # both
+#   stress --init          # scaffold starter gen.cs / brute.cs (C#) and exit
+set -euo pipefail
+
+repo="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+work="$repo/.stress"         # git-ignored (matches the */ rule in .gitignore)
+
+# ---- args -----------------------------------------------------------------
+count=300
+keep_going=0
+do_init=0
+for a in "$@"; do
+  case "$a" in
+    -k|--keep-going) keep_going=1 ;;
+    --init)          do_init=1 ;;
+    -h|--help)       sed -n '2,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    ''|*[!0-9]*)     echo "stress: unrecognized argument: $a" >&2; exit 2 ;;
+    *)               count="$a" ;;
+  esac
+done
+
+# ---- locate dotnet (same probe order as run) ------------------------------
+if command -v dotnet >/dev/null 2>&1; then DOTNET=dotnet
+elif [[ -x "$HOME/.dotnet/dotnet" ]]; then DOTNET="$HOME/.dotnet/dotnet"
+elif [[ -x /usr/local/share/dotnet/dotnet ]]; then DOTNET=/usr/local/share/dotnet/dotnet
+elif [[ -x /opt/homebrew/opt/dotnet/bin/dotnet ]]; then DOTNET=/opt/homebrew/opt/dotnet/bin/dotnet
+elif [[ -x /opt/homebrew/bin/dotnet ]]; then DOTNET=/opt/homebrew/bin/dotnet
+elif [[ -x /usr/local/bin/dotnet ]]; then DOTNET=/usr/local/bin/dotnet
+else echo "stress: 'dotnet' not found. Install the .NET SDK." >&2; exit 1; fi
+export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
+
+# ---- --init: scaffold starter files ---------------------------------------
+scaffold_gen() {
+  cat > "$repo/gen.cs" <<'EOF'
+// gen.cs -- prints ONE random test input to stdout.
+// args[0] is the seed (deterministic per seed, so mismatches are reproducible).
+// Keep sizes SMALL so brute.cs can solve them exhaustively.
+using System;
+
+int seed = args.Length > 0 ? int.Parse(args[0]) : 0;
+var rng = new Random(seed);
+
+int n = rng.Next(1, 6);            // e.g. array length 1..5
+Console.WriteLine(n);
+Console.WriteLine(string.Join(' ', Enumerable.Range(0, n).Select(_ => rng.Next(1, 10))));
+
+// note: `args` and top-level statements work the same as main.cs.
+EOF
+  echo "stress: wrote gen.cs"
+}
+scaffold_brute() {
+  cat > "$repo/brute.cs" <<'EOF'
+// brute.cs -- reference solution: reads the same stdin as main.cs, prints the
+// answer the obviously-correct (slow / exhaustive) way.
+using System;
+
+var tok = Console.In.ReadToEnd().Split(new[]{' ','\n','\r','\t'}, StringSplitOptions.RemoveEmptyEntries);
+int p = 0;
+int Next() => int.Parse(tok[p++]);
+
+int n = Next();
+int[] a = new int[n];
+for (int i = 0; i < n; i++) a[i] = Next();
+
+// TODO: replace with the exhaustive answer for this problem.
+Console.WriteLine(a.Sum());
+EOF
+  echo "stress: wrote brute.cs"
+}
+if [[ $do_init -eq 1 ]]; then
+  [[ -e "$repo/gen.cs"   || -e "$repo/gen.py"   ]] && echo "stress: gen.*  exists, leaving it"   || scaffold_gen
+  [[ -e "$repo/brute.cs" || -e "$repo/brute.py" ]] && echo "stress: brute.* exists, leaving it" || scaffold_brute
+  echo "stress: edit gen.cs / brute.cs, then run 'stress'."
+  exit 0
+fi
+
+# ---- resolve the three programs -------------------------------------------
+[[ -f "$repo/main.cs" ]] || { echo "stress: main.cs not found (try 'rst')." >&2; exit 1; }
+
+pick() { # pick <name> -> echoes "cs <path>" or "py <path>", else empty
+  if   [[ -f "$repo/$1.cs" ]]; then echo "cs $repo/$1.cs"
+  elif [[ -f "$repo/$1.py" ]]; then echo "py $repo/$1.py"; fi
+}
+gen_spec="$(pick gen)"; brute_spec="$(pick brute)"
+if [[ -z "$gen_spec" || -z "$brute_spec" ]]; then
+  echo "stress: need a generator and a reference solution." >&2
+  [[ -z "$gen_spec"   ]] && echo "  missing gen.cs / gen.py"       >&2
+  [[ -z "$brute_spec" ]] && echo "  missing brute.cs / brute.py"   >&2
+  echo "  run 'stress --init' to scaffold C# starters." >&2
+  exit 1
+fi
+
+# ---- build a single-file C# program into $work, echo its dll --------------
+# build_cs <name> <srcfile>
+build_cs() {
+  local name="$1" src="$2" dir="$work/$1"
+  mkdir -p "$dir"
+  cat > "$dir/$name.csproj" <<EOF
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <Optimize>true</Optimize>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>$name</AssemblyName>
+    <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>CS0168;CS0219;CS0649;CS8321</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$src" />
+  </ItemGroup>
+</Project>
+EOF
+  local log; log="$(mktemp)"
+  if ! "$DOTNET" build "$dir" -c Release -v quiet --nologo >"$log" 2>&1; then
+    echo "stress: build failed for $src" >&2; cat "$log" >&2; rm -f "$log"; exit 1
+  fi
+  rm -f "$log"
+  ls "$dir"/bin/Release/*/"$name.dll" 2>/dev/null | head -1
+}
+
+mkdir -p "$work"
+echo "stress: building..." >&2
+
+# main.cs -- reuse the existing runner project so it stays identical to 'run'.
+main_log="$(mktemp)"
+if ! "$DOTNET" build "$repo/runner" -c Release -v quiet --nologo >"$main_log" 2>&1; then
+  echo "stress: build failed for main.cs" >&2; cat "$main_log" >&2; rm -f "$main_log"; exit 1
+fi
+rm -f "$main_log"
+main_dll="$(ls "$repo"/runner/bin/Release/*/runner.dll 2>/dev/null | head -1)"
+
+read -r gen_lang gen_file <<<"$gen_spec"
+read -r brute_lang brute_file <<<"$brute_spec"
+[[ "$gen_lang"   == cs ]] && gen_dll="$(build_cs gen "$gen_file")"
+[[ "$brute_lang" == cs ]] && brute_dll="$(build_cs brute "$brute_file")"
+
+# ---- run helpers ----------------------------------------------------------
+run_gen()   { # run_gen <seed> -> input on stdout
+  if [[ "$gen_lang" == cs ]]; then "$DOTNET" "$gen_dll" "$1"; else python3 "$gen_file" "$1"; fi
+}
+run_main()  { "$DOTNET" "$main_dll" < "$1"; }
+run_brute() { if [[ "$brute_lang" == cs ]]; then "$DOTNET" "$brute_dll" < "$1"; else python3 "$brute_file" < "$1"; fi; }
+
+# normalize: strip trailing whitespace per line + trailing blank lines (portable awk)
+norm() {
+  awk '{ sub(/[ \t\r]+$/, ""); L[NR]=$0 }
+       END { n=NR; while (n>0 && L[n]=="") n--; for (i=1;i<=n;i++) print L[i] }' "$1"
+}
+
+# ---- the loop -------------------------------------------------------------
+inp="$(mktemp)"; outm="$(mktemp)"; outb="$(mktemp)"
+trap 'rm -f "$inp" "$outm" "$outb"' EXIT
+
+echo "stress: running $count cases (main.cs vs $brute_file)..." >&2
+fails=0
+for ((seed=1; seed<=count; seed++)); do
+  run_gen "$seed" > "$inp"
+  if ! run_main  "$inp" > "$outm" 2>&1; then
+    echo "" ; echo "=== seed $seed: main.cs CRASHED ==="; echo "--- input ---"; cat "$inp"; echo "--- stderr/out ---"; cat "$outm"
+    fails=$((fails+1)); [[ $keep_going -eq 1 ]] && continue || break
+  fi
+  run_brute "$inp" > "$outb"
+  if ! diff -q <(norm "$outm") <(norm "$outb") >/dev/null; then
+    fails=$((fails+1))
+    echo ""
+    echo "=== MISMATCH  seed=$seed ==="
+    echo "--- input ---";    cat "$inp"
+    echo "--- expected (brute) ---"; cat "$outb"
+    echo "--- got (main.cs) ---";    cat "$outm"
+    [[ $keep_going -eq 1 ]] || { echo ""; echo "stress: reproduce with the input above."; break; }
+  else
+    printf '\r  ok %d/%d' "$seed" "$count" >&2
+  fi
+done
+echo "" >&2
+
+if [[ $fails -eq 0 ]]; then
+  echo "stress: all $count cases passed ✔" >&2
+else
+  echo "stress: $fails mismatch(es) found" >&2
+  exit 1
+fi

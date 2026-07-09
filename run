@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# run -- compile & run main.cs via the scoped runner project.
+#   run              # interactive stdin
+#   run input.txt    # redirect stdin from a file
+set -euo pipefail
+
+repo="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+runner="$repo/runner"
+
+if [[ ! -f "$repo/main.cs" ]]; then
+  echo "run: main.cs not found (try 'rst' first)" >&2
+  exit 1
+fi
+
+# Locate dotnet (PATH first, then common Homebrew-cask install locations).
+if command -v dotnet >/dev/null 2>&1; then
+  DOTNET=dotnet
+elif [[ -x "$HOME/.dotnet/dotnet" ]]; then
+  DOTNET="$HOME/.dotnet/dotnet"
+elif [[ -x /usr/local/share/dotnet/dotnet ]]; then
+  DOTNET=/usr/local/share/dotnet/dotnet
+elif [[ -x /opt/homebrew/opt/dotnet/bin/dotnet ]]; then
+  DOTNET=/opt/homebrew/opt/dotnet/bin/dotnet
+elif [[ -x /usr/local/bin/dotnet ]]; then
+  DOTNET=/usr/local/bin/dotnet
+else
+  echo "run: 'dotnet' not found. Install the .NET SDK (e.g. brew install --cask dotnet-sdk)." >&2
+  exit 1
+fi
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
+export DOTNET_NOLOGO=1
+
+# Keep restore/build noise out of the way; show build errors if any.
+build_log="$(mktemp)"
+trap 'rm -f "$build_log"' EXIT
+
+if ! "$DOTNET" build "$runner" -c Release -v quiet --nologo >"$build_log" 2>&1; then
+  echo "run: build failed" >&2
+  cat "$build_log" >&2
+  exit 1
+fi
+
+dll="$runner/bin/Release/"*"/runner.dll"
+# shellcheck disable=SC2086
+dll=$(ls $dll 2>/dev/null | head -1)
+if [[ -z "$dll" ]]; then
+  echo "run: could not locate built runner.dll" >&2
+  cat "$build_log" >&2
+  exit 1
+fi
+
+if [[ $# -ge 1 ]]; then
+  if [[ ! -f "$1" ]]; then
+    echo "run: input file not found: $1" >&2
+    exit 1
+  fi
+  "$DOTNET" "$dll" < "$1"
+else
+  "$DOTNET" "$dll"
+fi

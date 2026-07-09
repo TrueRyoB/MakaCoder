@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# wind -- copy a submission-ready main.cs (only referenced library) to clipboard.
+set -euo pipefail
+
+repo="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+src="${1:-$repo/main.cs}"
+
+if [[ ! -f "$src" ]]; then
+  echo "wind: source not found: $src" >&2
+  exit 1
+fi
+
+# wind.py writes the pruned source to stdout and a summary to stderr.
+# stdout -> clipboard; stderr -> terminal.
+python3 "$repo/wind.py" "$src" | pbcopy
+echo "wind: submission code copied to clipboard."
