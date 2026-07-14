@@ -3249,6 +3249,28 @@ static class Sugaku
     if (r != T.Zero && (a ^ b) < T.Zero) --q;
     return q;
   }
+  public readonly struct Frac(int n, int d) : IComparable<Frac>, IEquatable<Frac>
+  {
+    public readonly int n=n;
+    public readonly int d=d;
+
+    public int CompareTo(Frac other)
+    {
+      long left = (long)this.n * other.d;
+      long right = (long)other.n * this.d;
+
+      return left.CompareTo(right);
+    }
+
+    public bool Equals(Frac other)
+     => (long)this.n * other.d == (long)other.n * this.d;
+
+    public override bool Equals(object? obj)
+      => obj is Frac other && Equals(other);
+
+    public override int GetHashCode()
+     => HashCode.Combine(n, d);
+  }
 }
 
 class FastScanner
