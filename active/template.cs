@@ -3149,6 +3149,8 @@ static class Sugaku
   public const long MOD3 = 998244353L;
   public const int INF = 1001001001;
   public const long LINF = 1001001001001001001L;
+  public const int THOU = 1000;
+  public const int MIL = 1000000;
 
   public static T GCD<T>(T a, T b) where T : IBinaryInteger<T>
   {
