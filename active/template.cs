@@ -3165,6 +3165,28 @@ static class Sugaku
   public const int THOU = 1000;
   public const int MIL = 1000000;
 
+  public static int At<T>(int k, T a) where T : IBinaryInteger<T>
+  {
+    T absoluteA = T.Abs(a);
+    T ten = T.CreateChecked(10);
+
+    int len = 1;
+    T u = ten;
+    while (u <= absoluteA)
+    {
+      u *= ten;
+      len++;
+    }
+    
+    if (k < 0 || k >= len) throw new ArgumentOutOfRangeException(nameof(k));
+
+    T remaining = absoluteA;
+    int divisorCount = len - k - 1;
+    for (int i = 0; i < divisorCount; i++) remaining /= ten;
+
+    return int.CreateChecked(remaining % ten);
+  }
+
   public static T GCD<T>(T a, T b) where T : IBinaryInteger<T>
   {
     a = T.Abs(a);
