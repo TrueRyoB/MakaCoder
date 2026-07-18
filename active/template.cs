@@ -75,6 +75,19 @@ Environment.Exit(0);
 
 static class Nms
 {
+  public static T Sigma<T>(int s, int t, Func<int, T> f) where T : INumber<T>
+  {
+    T res=T.Zero;
+    for(int i=s; i<=t; ++i) res+=f(i);
+    return res;
+  }
+  public static T Sigma<T, U>(IEnumerable<U> set, Func<U, T> f) where T : INumber<T>
+  {
+    T res=T.Zero;
+    foreach(var i in set) res+=f(i);
+    return res;
+  }
+  
   public static T[] Array<T>(int n, Func<T> f)
   {
     var a = new T[n];
